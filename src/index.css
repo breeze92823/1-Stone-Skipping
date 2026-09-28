@@ -1,0 +1,451 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #def0fb;
+  font-family: 'Fredoka One', 'Arial Rounded MT Bold', 'Trebuchet MS', system-ui, sans-serif;
+}
+
+canvas {
+  display: block;
+  touch-action: none;
+}
+
+/* ---------- HUD ----------
+   Everything scales off --u so the layout keeps the screenshots'
+   proportions at any window size (1u ≈ 17px on a 1920x990 window). */
+.hud {
+  --u: min(0.9vw, 1.75vh);
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  color: #fff;
+  user-select: none;
+}
+
+.hud button {
+  pointer-events: auto;
+  cursor: pointer;
+  border: none;
+  font: inherit;
+  color: inherit;
+}
+
+/* Thick black outline under a white fill, the Roblox UI text look. */
+.outlined {
+  -webkit-text-stroke: 0.2em #111;
+  paint-order: stroke fill;
+  letter-spacing: 0.02em;
+}
+
+/* top bar */
+.topbar {
+  position: absolute;
+  top: calc(var(--u) * 1);
+  display: flex;
+  gap: calc(var(--u) * 0.6);
+}
+.topbar-left {
+  left: calc(var(--u) * 1.1);
+}
+.topbar-right {
+  right: calc(var(--u) * 1.1);
+}
+.round-btn,
+.pill-btn {
+  height: calc(var(--u) * 3.3);
+  background: rgba(22, 24, 28, 0.82);
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.round-btn {
+  width: calc(var(--u) * 3.3);
+}
+.round-btn svg {
+  width: 55%;
+  height: 55%;
+}
+.pill-btn {
+  padding: 0 calc(var(--u) * 0.9);
+  gap: calc(var(--u) * 1);
+}
+.pill-btn svg {
+  width: calc(var(--u) * 1.9);
+  height: calc(var(--u) * 1.9);
+}
+.chat {
+  position: relative;
+  display: flex;
+}
+.badge {
+  position: absolute;
+  top: calc(var(--u) * -0.6);
+  right: calc(var(--u) * -0.8);
+  background: #3b6cff;
+  border-radius: 999px;
+  font-family: system-ui, sans-serif;
+  font-weight: 700;
+  font-size: calc(var(--u) * 0.85);
+  padding: 0 calc(var(--u) * 0.35);
+  line-height: 1.35;
+}
+
+/* tutorial quest banner */
+.quest {
+  position: absolute;
+  top: calc(var(--u) * 3.6);
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(var(--u) * 46);
+  height: calc(var(--u) * 4.8);
+  background-color: #ffc93a;
+  border: calc(var(--u) * 0.18) solid #1c1c1c;
+  border-radius: calc(var(--u) * 0.6);
+  box-shadow: inset 0 calc(var(--u) * -0.35) 0 rgba(0, 0, 0, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-image:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.3) 0 22%, rgba(190, 120, 0, 0.18) 26% 32%, transparent 36%);
+  background-size: calc(var(--u) * 2.1) calc(var(--u) * 2.1);
+}
+.quest-tag {
+  position: absolute;
+  top: calc(var(--u) * -1.05);
+  font-size: calc(var(--u) * 1.3);
+  color: #ffd84a;
+}
+.quest-text {
+  font-size: calc(var(--u) * 2.55);
+  white-space: nowrap;
+}
+
+.controls-hint {
+  position: absolute;
+  top: calc(var(--u) * 9.4);
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: system-ui, sans-serif;
+  font-size: max(12px, calc(var(--u) * 0.85));
+  background: rgba(0, 0, 0, 0.45);
+  padding: 0.4em 0.9em;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+/* THROW ZONE prompt */
+.throw-btn {
+  position: absolute;
+  top: 60%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 0 calc(var(--u) * 2.4);
+  height: calc(var(--u) * 5.2);
+  border: calc(var(--u) * 0.2) solid #161616 !important;
+  border-radius: calc(var(--u) * 1);
+  background-image:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.28) 0 22%, rgba(0, 60, 0, 0.18) 26% 32%, transparent 36%),
+    linear-gradient(#5ed94a, #2ea033);
+  box-shadow: inset 0 calc(var(--u) * -0.4) 0 rgba(0, 0, 0, 0.2);
+  background-size: calc(var(--u) * 2.1) calc(var(--u) * 2.1), 100% 100%;
+  transition: transform 0.08s ease, filter 0.1s ease, opacity 0.15s ease;
+}
+.throw-btn:hover {
+  filter: brightness(1.08);
+}
+.throw-btn:active {
+  transform: translate(-50%, -50%) translateY(2px) scale(0.98);
+}
+.throw-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.throw-btn span {
+  font-size: calc(var(--u) * 2.8);
+}
+
+/* left-side stats */
+.side-stats {
+  position: absolute;
+  left: calc(var(--u) * 1.5);
+  bottom: calc(var(--u) * 1.3);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.6);
+}
+.side-stat {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 0.9);
+}
+.stat-icon {
+  width: calc(var(--u) * 4);
+  height: calc(var(--u) * 4);
+  filter: drop-shadow(0 calc(var(--u) * 0.15) 0 rgba(0, 0, 0, 0.35));
+}
+.stat-num {
+  font-size: calc(var(--u) * 2.4);
+}
+.stat-rebirth {
+  color: #7fdcff;
+}
+.stat-wins {
+  color: #ffd23f;
+}
+.friend-boost {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 0.8);
+  font-size: calc(var(--u) * 1.5);
+  margin-top: calc(var(--u) * 0.3);
+}
+.plus-icon {
+  width: calc(var(--u) * 2);
+  height: calc(var(--u) * 2);
+}
+
+/* bottom: skill / multiplier, level bar, boost buttons */
+.bottom {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--u) * 2.2);
+  transform: translateX(-50%);
+  width: calc(var(--u) * 46);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.45);
+}
+.bottom-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 0 calc(var(--u) * 0.2);
+}
+.skill,
+.mult {
+  font-size: calc(var(--u) * 1.8);
+  color: #ffd23f;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 0.4);
+}
+.skill-bolt {
+  width: calc(var(--u) * 1.6);
+  height: calc(var(--u) * 2.4);
+}
+
+.levelbar {
+  position: relative;
+  height: calc(var(--u) * 4.8);
+  border: calc(var(--u) * 0.2) solid #161616;
+  border-radius: calc(var(--u) * 0.7);
+  background-color: #e8ecf1;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 calc(var(--u) * 1.2);
+  background-image:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.7) 0 22%, rgba(0, 0, 0, 0.07) 26% 32%, transparent 36%);
+  background-size: calc(var(--u) * 2.1) calc(var(--u) * 2.1);
+}
+.levelbar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background-color: #1f7fff;
+  background-image:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.25) 0 22%, rgba(0, 0, 40, 0.15) 26% 32%, transparent 36%),
+    linear-gradient(#3b95ff, #1566e0);
+  background-size: calc(var(--u) * 2.1) calc(var(--u) * 2.1), 100% 100%;
+  border-right: calc(var(--u) * 0.15) solid rgba(0, 0, 0, 0.25);
+  transition: width 0.3s ease;
+}
+.levelbar-level,
+.levelbar-xp {
+  position: relative;
+  font-size: calc(var(--u) * 2.4);
+}
+.levelbar-xp {
+  font-size: calc(var(--u) * 2);
+}
+
+.boosts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: calc(var(--u) * 0.55);
+}
+.boost {
+  position: relative;
+  height: calc(var(--u) * 4.4);
+  border: calc(var(--u) * 0.18) solid #161616 !important;
+  border-radius: calc(var(--u) * 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 calc(var(--u) * -0.35) 0 rgba(0, 0, 0, 0.18);
+  transition: transform 0.08s ease, filter 0.1s ease;
+  background-size: calc(var(--u) * 2.1) calc(var(--u) * 2.1), 100% 100%;
+}
+.boost:hover {
+  filter: brightness(1.08);
+}
+.boost:active {
+  transform: translateY(2px) scale(0.98);
+}
+.boost-yellow {
+  background-image:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.3) 0 22%, rgba(160, 100, 0, 0.16) 26% 32%, transparent 36%),
+    linear-gradient(#ffd34a, #f5b21c);
+}
+.boost-red {
+  background-image:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.22) 0 22%, rgba(90, 0, 0, 0.18) 26% 32%, transparent 36%),
+    linear-gradient(#ff5d5d, #e02b2b);
+}
+.boost-rainbow {
+  background-image:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.25) 0 22%, rgba(0, 0, 0, 0.12) 26% 32%, transparent 36%),
+    linear-gradient(90deg, #ff3b3b, #ff9a1f, #ffe433, #3dec5b, #28c8ff, #4a6bff, #c23dff);
+}
+.boost-bolt {
+  position: absolute;
+  top: calc(var(--u) * -0.9);
+  left: 50%;
+  width: calc(var(--u) * 2.2);
+  height: calc(var(--u) * 5);
+  transform: translateX(-40%) rotate(20deg);
+  opacity: 0.95;
+}
+.boost-label {
+  position: relative;
+  font-size: calc(var(--u) * 2.6);
+}
+.boost-cost {
+  position: absolute;
+  right: calc(var(--u) * 0.3);
+  bottom: calc(var(--u) * -0.6);
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 0.15);
+  font-size: calc(var(--u) * 1.3);
+  color: #9dff8a;
+}
+.robux {
+  width: calc(var(--u) * 1.5);
+  height: calc(var(--u) * 1.5);
+}
+
+/* ---------- Bloxity: auth, friends, balance ---------- */
+.auth-pill {
+  font-size: calc(var(--u) * 1.15);
+  padding: 0 calc(var(--u) * 1.3);
+}
+.auth-account {
+  position: relative;
+}
+.auth-avatar {
+  overflow: hidden;
+  font-size: calc(var(--u) * 1.5);
+}
+.auth-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 999px;
+}
+.auth-menu {
+  pointer-events: auto;
+  position: absolute;
+  top: calc(var(--u) * 3.8);
+  right: 0;
+  background: rgba(22, 24, 28, 0.94);
+  border-radius: calc(var(--u) * 0.5);
+  padding: calc(var(--u) * 0.7);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.4);
+  min-width: calc(var(--u) * 12);
+}
+.auth-name {
+  font-size: calc(var(--u) * 1.1);
+  white-space: nowrap;
+}
+.auth-logout {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border-radius: calc(var(--u) * 0.4);
+  padding: calc(var(--u) * 0.35) calc(var(--u) * 0.6);
+  font-family: system-ui, sans-serif;
+  font-size: calc(var(--u) * 0.95);
+}
+.bux-balance {
+  font-family: system-ui, sans-serif;
+  font-weight: 700;
+}
+.friends-panel-wrap {
+  position: relative;
+}
+.friends-panel {
+  pointer-events: auto;
+  position: absolute;
+  top: calc(var(--u) * 3.8);
+  left: 0;
+  background: rgba(22, 24, 28, 0.94);
+  border-radius: calc(var(--u) * 0.5);
+  padding: calc(var(--u) * 0.8);
+  min-width: calc(var(--u) * 16);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.5);
+}
+.friends-title {
+  font-size: calc(var(--u) * 1.2);
+}
+.friends-empty {
+  font-family: system-ui, sans-serif;
+  font-size: calc(var(--u) * 0.9);
+  opacity: 0.7;
+}
+.friend-row {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 0.5);
+  font-family: system-ui, sans-serif;
+  font-size: calc(var(--u) * 0.95);
+}
+.presence-dot {
+  width: calc(var(--u) * 0.7);
+  height: calc(var(--u) * 0.7);
+  border-radius: 999px;
+  flex: none;
+}
+.friend-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.friend-invite {
+  background: #3b6cff;
+  color: #fff;
+  border-radius: calc(var(--u) * 0.4);
+  padding: calc(var(--u) * 0.25) calc(var(--u) * 0.6);
+  font-size: calc(var(--u) * 0.85);
+}
+.fps-counter {
+  position: fixed;
+  top: calc(var(--u) * 5.5);
+  left: calc(var(--u) * 1.1);
+  font-size: calc(var(--u) * 1.1);
+  color: #9dff8a;
+}
