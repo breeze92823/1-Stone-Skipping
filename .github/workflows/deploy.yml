@@ -28,6 +28,9 @@ jobs:
           fi
 
       - name: Build
+        env:
+          VITE_SERVER_URL_DEV: ${{ secrets.VITE_SERVER_URL_DEV }}
+          VITE_SERVER_URL_MAIN: ${{ secrets.VITE_SERVER_URL_MAIN }}
         run: |
           if [ "${{ steps.channel.outputs.channel }}" = "prod" ]; then
             npm run build

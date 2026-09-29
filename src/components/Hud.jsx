@@ -13,6 +13,9 @@ import { formatNumber } from '../utils/formatNumber.js'
 import { actionResultState } from '../systems/actionResult.js'
 import { canAcceptRebirth, rebirthLevelsRequired, levelForSkill, levelProgress } from '../data/progression.js'
 
+const TUTORIAL_SKILL = 30
+const TUTORIAL_WINS = 2
+const TUTORIAL_STONE = 'scallop' // the +3 Skill Stone
 const TUTORIAL_LEVEL = 20
 
 // Skill purchase buttons along the bottom, now backed by real Bux
@@ -323,7 +326,21 @@ export default function Hud() {
     return () => clearTimeout(id)
   }, [])
 
-  const questDone = level >= TUTORIAL_LEVEL
+  // Tutorial steps (see useGameStore): 0 get skills, 1 get wins, 2 equip the
+  // +3 stone, 3 reach level 20, 4 rebirth, 5 done. Latched so the step never
+  // goes backwards (e.g. a rebirth resets skill).
+  const currentPoolId = useGameStore((s) => s.currentPoolId)
+  const equippedStone = useGameStore((s) => s.equippedStone)
+  const tutorialStep = useGameStore((s) => s.tutorialStep)
+  const setTutorialStep = useGameStore((s) => s.setTutorialStep)
+  useEffect(() => {
+    if (tutorialStep === 0 && skill >= TUTORIAL_SKILL) setTutorialStep(1)
+    else if (tutorialStep === 1 && wins >= TUTORIAL_WINS) setTutorialStep(2)
+    else if (tutorialStep === 2 && equippedStone === TUTORIAL_STONE) setTutorialStep(3)
+    else if (tutorialStep === 3 && level >= TUTORIAL_LEVEL) setTutorialStep(4)
+    else if (tutorialStep === 4 && rebirths >= 1) setTutorialStep(5)
+  }, [tutorialStep, skill, wins, equippedStone, level, rebirths, setTutorialStep])
+  const questDone = tutorialStep === 5
   useSettings()
   const showFps = settings.show_fps
 
@@ -340,8 +357,16 @@ export default function Hud() {
       <div className="quest">
         <div className="quest-tag outlined">{questDone ? 'COMPLETE' : 'TUTORIAL'}</div>
         <div className="quest-text outlined">
-          REACH LEVEL {TUTORIAL_LEVEL} ({Math.min(level, TUTORIAL_LEVEL)}/{TUTORIAL_LEVEL})
+          {tutorialStep === 0 && `GET ${TUTORIAL_SKILL} SKILLS (${formatNumber(Math.min(skill, TUTORIAL_SKILL))}/${TUTORIAL_SKILL})`}
+          {tutorialStep === 1 && `GET ${TUTORIAL_WINS} WINS (${formatNumber(Math.min(wins, TUTORIAL_WINS))}/${TUTORIAL_WINS})`}
+          {tutorialStep === 2 && 'EQUIP A NEW STONE'}
+          {tutorialStep === 3 && `REACH LEVEL ${TUTORIAL_LEVEL} (${formatNumber(Math.min(level, TUTORIAL_LEVEL))}/${TUTORIAL_LEVEL})`}
+          {tutorialStep === 4 && 'REBIRTH NOW'}
+          {tutorialStep === 5 && 'TUTORIAL COMPLETE'}
         </div>
+        {tutorialStep === 1 && currentPoolId && (
+          <div className="quest-warn outlined">JUMP TO EXIT TRAINING ZONE</div>
+        )}
       </div>
 
       {showHint && (

@@ -129,6 +129,15 @@ canvas {
   font-size: calc(var(--u) * 2.55);
   white-space: nowrap;
 }
+.quest-warn {
+  position: absolute;
+  top: calc(100% + var(--u) * 0.8);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: calc(var(--u) * 2.1);
+  color: #ff3b30;
+  white-space: nowrap;
+}
 
 .controls-hint {
   position: absolute;

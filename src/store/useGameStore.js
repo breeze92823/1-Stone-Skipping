@@ -47,6 +47,9 @@ export const useGameStore = create((set, get) => ({
 
   currentPoolId: null, // id of the training pool the player is standing on, if any
 
+  tutorialStep: 0, // 0 skills, 1 wins, 2 equip +3 stone, 3 level 20, 4 rebirth, 5 done; only ever advances (Hud.jsx)
+  setTutorialStep: (step) => set({ tutorialStep: step }),
+
   setCurrentPoolId: (id) => set({ currentPoolId: id }),
   throwStone: () => set({ stoneReady: false, skipCount: 0 }),
   reloadStone: () => set({ stoneReady: true }),

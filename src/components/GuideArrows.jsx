@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { ExtrudeGeometry, Object3D, Shape } from 'three'
-import { GUIDE_TARGET } from '../data/world.js'
+import { GUIDE_TARGET, SKILL_STONES, THROW_ZONE } from '../data/world.js'
+import { useGameStore } from '../store/useGameStore.js'
 import { player } from '../systems/playerState.js'
 import { terrainHeightAt } from '../systems/terrainHeight.js'
 
@@ -9,6 +10,10 @@ const SPACING = 0.95 // m between arrows
 const SPEED = 1.6 // m/s the trail crawls toward the target
 const MAX_ARROWS = 90
 const HIDE_WITHIN = 2.5 // m from the target where the trail disappears
+// Middle of the Throw Zone strip, on the Chevron Road (x 3…9).
+const THROW_ZONE_TARGET = { x: 6, z: THROW_ZONE.z0 + 1.5 }
+const STONE_TARGET = SKILL_STONES[1] // +3 Skill Stone
+const TARGETS = [GUIDE_TARGET, THROW_ZONE_TARGET, STONE_TARGET, GUIDE_TARGET]
 
 // The tutorial trail: a line of white 3D arrowheads on the ground from the
 // player to the 1x pool, crawling toward it.
@@ -32,8 +37,16 @@ export default function GuideArrows() {
   useFrame(({ clock }) => {
     const mesh = ref.current
     if (!mesh) return
-    const dx = GUIDE_TARGET.x - player.position.x
-    const dz = GUIDE_TARGET.z - player.position.z
+    // Tutorial step picks the target: pool pad, throw zone, +3 stone, pool pad
+    // again, then no trail (rebirth and done).
+    const step = useGameStore.getState().tutorialStep
+    const target = TARGETS[step] ?? null
+    if (!target) {
+      mesh.count = 0
+      return
+    }
+    const dx = target.x - player.position.x
+    const dz = target.z - player.position.z
     const dist = Math.hypot(dx, dz)
     const ux = dx / (dist || 1)
     const uz = dz / (dist || 1)
