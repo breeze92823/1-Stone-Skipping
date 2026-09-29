@@ -4,7 +4,6 @@
 // screen and ages the live popups. components/ActionPopups.jsx draws the pool.
 import * as THREE from 'three'
 import { player } from './playerState.js'
-import { playSkillGainPop } from './sfx.js'
 import {
   ACTION_POPUP_POOL_SIZE,
   ACTION_POPUP_LIFETIME,
@@ -30,7 +29,6 @@ const anchor = new THREE.Vector3()
 // A non-positive amount (skill already clamped at max) shows nothing.
 export function spawnActionPopup(amount) {
   if (!(amount > 0)) return
-  playSkillGainPop()
   const slot = actionPopupPool[nextSlot]
   nextSlot = (nextSlot + 1) % ACTION_POPUP_POOL_SIZE
   spawnSeq += 1

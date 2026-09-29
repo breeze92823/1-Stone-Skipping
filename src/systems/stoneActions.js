@@ -2,6 +2,7 @@ import { Vector3 } from 'three'
 import { inputState, setMoveLocked } from './input.js'
 import { player } from './playerState.js'
 import { spawnSplash } from './splashes.js'
+import { playWaterSplash } from './sfx.js'
 import { spawnActionPopup } from './actionPopups.js'
 import { terrainHeightAt, waterAt, isInsideCliffs } from './terrainHeight.js'
 import { useGameStore } from '../store/useGameStore.js'
@@ -228,7 +229,9 @@ export function stepStones(dt) {
       const canSkip = lakeRun || (!(stone.lakeRun && water.lake) && angle < MAX_SHALLOW_ANGLE && speed > MIN_BOUNCE_SPEED && stone.skips < MAX_SKIPS)
 
       // Sinking stones make a big splash, skips a lighter one.
-      spawnSplash(x, water.y, z, canSkip ? 0.6 : 1.4)
+      const splashPower = canSkip ? 0.6 : 1.4
+      spawnSplash(x, water.y, z, splashPower)
+      playWaterSplash(splashPower)
 
       if (canSkip) {
         stone.position.y = water.y
