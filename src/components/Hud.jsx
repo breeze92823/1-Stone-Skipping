@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { useGameStore } from '../store/useGameStore.js'
 import { inputState } from '../systems/input.js'
-import { authState, isAvailable, login, logout, purchase, inviteFriend } from '../systems/bloxity.js'
+import { authState, isAvailable, login, logout, purchase } from '../systems/bloxity.js'
 import { settings } from '../systems/settingsState.js'
 import { useAuth, useSettings } from '../systems/bloxityHooks.js'
 import InteractPrompt from './InteractPrompt.jsx'
 import EggPanel from './EggPanel.jsx'
 import PetBar from './PetBar.jsx'
+import LeftMenu from './LeftMenu.jsx'
+import { BOOSTS } from '../data/boosts.js'
 import ActionResult from './ActionResult.jsx'
 import ActionPopups from './ActionPopups.jsx'
 import { formatNumber } from '../utils/formatNumber.js'
@@ -17,17 +19,6 @@ const TUTORIAL_SKILL = 30
 const TUTORIAL_WINS = 2
 const TUTORIAL_STONE = 'scallop' // the +3 Skill Stone
 const TUTORIAL_LEVEL = 20
-
-// Skill purchase buttons along the bottom, now backed by real Bux
-// purchases: the sku is passed to the SDK and the price comes from the
-// catalog registered for GAME_SLUG on bloxity.io — these placeholder skus
-// need to match whatever that catalog actually calls them.
-const BOOSTS = [
-  { label: '+10K', amount: 10_000, cost: 7, className: 'boost-yellow', sku: 'skill_boost_10k' },
-  { label: '+100K', amount: 100_000, cost: 30, className: 'boost-red', sku: 'skill_boost_100k' },
-  { label: '+1M', amount: 1_000_000, cost: 55, className: 'boost-rainbow', sku: 'skill_boost_1m' },
-]
-
 
 const Bolt = ({ className }) => (
   <svg className={className} viewBox="0 0 24 36" aria-hidden="true">
@@ -100,154 +91,81 @@ function FpsCounter() {
   return <div className="fps-counter outlined">{fps} FPS</div>
 }
 
-// Bloxity login + account control. Reads only from authState, which is kept
-// current by the single onUserChanged subscription in systems/bloxity.js —
-// no local caching of the user object here.
-function AuthControl() {
+// Top-right login panel, as in Age-every-click's AuthPanel: a "Log In" button
+// while signed out; dev builds keep a "Log Out" button to re-test the flow.
+// Signed-in players don't need it in-game. Reads only from authState (kept
+// current by the onUserChanged subscription in systems/bloxity.js).
+const DEV_ONLY = import.meta.env.DEV
+
+function AuthPanel() {
   useAuth()
-  const [menuOpen, setMenuOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
 
   if (!isAvailable()) return null
-  const user = authState.user
+  const { user, ready } = authState
+  if (ready && user && !DEV_ONLY) return null
 
-  if (!user) {
-    return (
-      <button className="pill-btn auth-pill" onClick={() => login()}>
-        <span className="outlined">Log In</span>
-      </button>
-    )
+  const onLogin = async () => {
+    setBusy(true)
+    try {
+      await login()
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
-    <div className="auth-account">
-      <button className="round-btn auth-avatar" aria-label="Account" onClick={() => setMenuOpen((v) => !v)}>
-        {user.pfp ? <img src={user.pfp} alt="" /> : <span className="outlined">{(user.displayName || user.username || '?')[0]}</span>}
-      </button>
-      {menuOpen && (
-        <div className="auth-menu">
-          <div className="auth-name outlined">{user.displayName || user.username}</div>
-          <button
-            className="auth-logout"
-            onClick={() => {
-              logout()
-              setMenuOpen(false)
-            }}
-          >
-            Log Out
-          </button>
-        </div>
+    <div className="auth-panel">
+      {!ready && <div className="auth-status">Connecting…</div>}
+      {ready && !user && (
+        <button type="button" className="auth-btn login" disabled={busy} onClick={onLogin}>
+          {busy ? 'Opening…' : 'Log in'}
+        </button>
+      )}
+      {ready && user && (
+        <button type="button" className="auth-btn" onClick={logout}>
+          Log out
+        </button>
       )}
     </div>
   )
 }
 
-const PRESENCE_COLOR = { online: '#3dec5b', 'in-game': '#4a6bff', away: '#ffc21a', offline: '#6b7fa8' }
-
-// Friends list popover, backed by Legion.SDK.social.getFriends() via
-// authState (refreshed on login).
-function FriendsPanel() {
+// Top-left identity chip, dev builds only: "Guest" until login, then the real
+// name and avatar.
+function IdentityChip() {
   useAuth()
-  const [open, setOpen] = useState(false)
+  const [imgFailed, setImgFailed] = useState(false)
+  if (!DEV_ONLY) return null
 
-  if (!authState.user) return null
-  const friends = authState.friends
+  const { user, guest } = authState
+  const identity = user || guest
+  const name = identity ? identity.displayName || identity.username || 'Player' : 'Guest'
+  const src = identity?.pfp
 
   return (
-    <div className="friends-panel-wrap">
-      <button className="round-btn" aria-label="Friends" onClick={() => setOpen((v) => !v)}>
-        <svg viewBox="0 0 24 24">
-          <circle cx="9" cy="9" r="3.2" fill="#fff" />
-          <circle cx="16" cy="10.5" r="2.6" fill="#c9d6ea" />
-          <path d="M3 20 C3 15.5 6 13 9 13 C12 13 15 15.5 15 20" fill="#fff" />
-          <path d="M14 20 C14 16.3 15.8 14.2 17.5 14.2 C19.6 14.2 21 16.6 21 20" fill="#c9d6ea" />
-        </svg>
-      </button>
-      {open && (
-        <div className="friends-panel">
-          <div className="friends-title outlined">Friends</div>
-          {friends.length === 0 && <div className="friends-empty">No friends yet</div>}
-          {friends.map((f) => (
-            <div key={f._id} className="friend-row">
-              <span className="presence-dot" style={{ background: PRESENCE_COLOR[f.presence?.status] ?? PRESENCE_COLOR.offline }} />
-              <span className="friend-name">{f.displayName || f.username}</span>
-              <button className="friend-invite" onClick={() => inviteFriend(f._id)}>
-                Invite
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+    <div className="identity-chip">
+      {src && !imgFailed && <img src={src} alt="" onError={() => setImgFailed(true)} />}
+      <div className="identity-text">
+        <div className="identity-name">{name}</div>
+        {!user && <div className="identity-sub">Playing as Guest</div>}
+      </div>
     </div>
   )
 }
 
-// Generic stand-ins for the client's top-bar buttons.
 function TopBar() {
-  useAuth()
-  useSettings()
-  const user = authState.user
-  const balance = authState.balance
-
   return (
     <>
-      <div className="topbar topbar-left">
-        <button className="round-btn" aria-label="Menu">
-          <svg viewBox="0 0 24 24">
-            <rect x="5" y="5" width="14" height="14" rx="2" transform="rotate(15 12 12)" fill="#fff" />
-            <rect x="10" y="10" width="4" height="4" transform="rotate(15 12 12)" fill="#1d1f24" />
-          </svg>
-        </button>
-        {settings.enable_chat && (
-          <div className="pill-btn">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M4 7 H20 M4 12 H20 M4 17 H20" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-            <span className="chat">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 5 H20 V16 H10 L6 20 V16 H4 Z" fill="none" stroke="#fff" strokeWidth="2" strokeLinejoin="round" />
-              </svg>
-              <span className="badge">13</span>
-            </span>
-          </div>
-        )}
-        <button className="round-btn" aria-label="Settings">
-          <svg viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="7.6" fill="none" stroke="#4aa8ff" strokeWidth="4" strokeDasharray="3 3" />
-            <circle cx="12" cy="12" r="6.2" fill="#4aa8ff" />
-            <circle cx="12" cy="12" r="2.6" fill="#1d1f24" />
-          </svg>
-        </button>
-        {user && <FriendsPanel />}
-      </div>
-      <div className="topbar topbar-right">
-        {user && (
-          <div className="pill-btn bux-balance">
-            <RobuxHex />
-            <span className="outlined">{balance ?? '—'}</span>
-          </div>
-        )}
-        <button className="round-btn" aria-label="Daily rewards">
-          <svg viewBox="0 0 24 24">
-            <rect x="4" y="6" width="16" height="14" rx="2" fill="#fff" />
-            <rect x="4" y="6" width="16" height="4" fill="#ff4d6d" />
-            <text x="12" y="18" fontSize="7" textAnchor="middle" fill="#1d1f24" fontWeight="bold">31</text>
-          </svg>
-        </button>
-        <button className="round-btn" aria-label="Quests">
-          <svg viewBox="0 0 24 24">
-            <path d="M6 4 H17 A2 2 0 0 1 19 6 V18 A2 2 0 0 1 17 20 H7 A2 2 0 0 1 5 18 V6 A2 2 0 0 1 6 4 Z" fill="#e8f0ff" />
-            <path d="M8 9 H16 M8 12 H16 M8 15 H13" stroke="#6b7fa8" strokeWidth="1.5" />
-          </svg>
-        </button>
-        <AuthControl />
-      </div>
+      <IdentityChip />
+      <AuthPanel />
     </>
   )
 }
 
 // Confirms the trade of current Skill for a rebirth rather than firing on a
 // single click. Ported from Age-every-click's RebirthWindow.
-function RebirthWindow({ onClose }) {
+function RebirthWindow({ onClose, spotlight }) {
   const skill = useGameStore((s) => s.skill)
   const rebirths = useGameStore((s) => s.rebirths)
   const acceptRebirth = useGameStore((s) => s.acceptRebirth)
@@ -278,7 +196,7 @@ function RebirthWindow({ onClose }) {
           </div>
           <button
             type="button"
-            className="rebirth-confirm outlined"
+            className={`rebirth-confirm outlined${spotlight && canRebirth ? ' tutorial-spot-window' : ''}`}
             disabled={!canRebirth}
             onClick={() => {
               acceptRebirth()
@@ -341,6 +259,17 @@ export default function Hud() {
     else if (tutorialStep === 4 && rebirths >= 1) setTutorialStep(5)
   }, [tutorialStep, skill, wins, equippedStone, level, rebirths, setTutorialStep])
   const questDone = tutorialStep === 5
+  // Once complete the banner lingers 10 s, pops out, then unmounts.
+  const [bannerPhase, setBannerPhase] = useState('show') // 'show' | 'leaving' | 'gone'
+  useEffect(() => {
+    if (!questDone) return
+    const leave = setTimeout(() => setBannerPhase('leaving'), 10000)
+    const gone = setTimeout(() => setBannerPhase('gone'), 10000 + 500)
+    return () => {
+      clearTimeout(leave)
+      clearTimeout(gone)
+    }
+  }, [questDone])
   useSettings()
   const showFps = settings.show_fps
 
@@ -354,7 +283,8 @@ export default function Hud() {
       <ActionPopups />
       {showFps && <FpsCounter />}
 
-      <div className="quest">
+      {bannerPhase !== 'gone' && (
+      <div className={`quest${bannerPhase === 'leaving' ? ' quest-leaving' : ''}`}>
         <div className="quest-tag outlined">{questDone ? 'COMPLETE' : 'TUTORIAL'}</div>
         <div className="quest-text outlined">
           {tutorialStep === 0 && `GET ${TUTORIAL_SKILL} SKILLS (${formatNumber(Math.min(skill, TUTORIAL_SKILL))}/${TUTORIAL_SKILL})`}
@@ -368,6 +298,7 @@ export default function Hud() {
           <div className="quest-warn outlined">JUMP TO EXIT TRAINING ZONE</div>
         )}
       </div>
+      )}
 
       {showHint && (
         <div className="controls-hint">WASD move · Space jump · Right-drag camera</div>
@@ -384,16 +315,17 @@ export default function Hud() {
         </button>
       )}
 
+      {/* REBIRTH NOW: dim everything except the menu's Rebirth tile, then (window open) the confirm button. */}
+      {tutorialStep === 4 && !rebirthOpen && <div className="tutorial-dim" />}
+      {tutorialStep >= 4 && (
+        <LeftMenu onRebirth={() => setRebirthOpen(true)} spotlightRebirth={tutorialStep === 4 && !rebirthOpen} />
+      )}
+
       <div className="side-stats">
-        <button
-          type="button"
-          className={`side-stat rebirth-btn${canAcceptRebirth(skill, rebirths) ? ' ready' : ''}`}
-          aria-label="Rebirth"
-          onClick={() => setRebirthOpen(true)}
-        >
+        <div className="side-stat">
           <RebirthIcon />
           <span className="outlined stat-num stat-rebirth">{formatNumber(rebirths)}</span>
-        </button>
+        </div>
         <div className="side-stat">
           <TrophyIcon />
           <span className="outlined stat-num stat-wins">{formatNumber(wins)}</span>
@@ -440,7 +372,7 @@ export default function Hud() {
         </div>
       </div>
 
-      {rebirthOpen && <RebirthWindow onClose={() => setRebirthOpen(false)} />}
+      {rebirthOpen && <RebirthWindow onClose={() => setRebirthOpen(false)} spotlight={tutorialStep === 4} />}
     </div>
   )
 }

@@ -7,7 +7,7 @@ import { player } from '../systems/playerState.js'
 // from the shared label canvas (utils/labelCanvas.js), anchored at its bottom
 // centre just above the character's head.
 const NAMETAG_Y = player.dims.height + 0.25
-const NAMETAG_SCALE = 0.55
+const NAMETAG_SCALE = 1.6
 // The level can change with every skip; repainting + re-uploading a texture
 // that often would be wasted work for a tag nobody reads that precisely.
 const REPAINT_INTERVAL_MS = 1000

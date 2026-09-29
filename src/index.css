@@ -46,58 +46,58 @@ canvas {
   letter-spacing: 0.02em;
 }
 
-/* top bar */
-.topbar {
+/* top bar: identity chip (left, dev only) + auth panel (right) */
+.identity-chip,
+.auth-panel {
   position: absolute;
   top: calc(var(--u) * 1);
-  display: flex;
-  gap: calc(var(--u) * 0.6);
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: calc(var(--u) * 0.4);
+  padding: calc(var(--u) * 0.6) calc(var(--u) * 0.9);
+  font-family: system-ui, sans-serif;
+  font-size: calc(var(--u) * 1);
+  color: #e2e8f0;
 }
-.topbar-left {
+.identity-chip {
   left: calc(var(--u) * 1.1);
-}
-.topbar-right {
-  right: calc(var(--u) * 1.1);
-}
-.round-btn,
-.pill-btn {
-  height: calc(var(--u) * 3.3);
-  background: rgba(22, 24, 28, 0.82);
-  border-radius: 999px;
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: calc(var(--u) * 0.6);
+  pointer-events: none;
 }
-.round-btn {
-  width: calc(var(--u) * 3.3);
-}
-.round-btn svg {
-  width: 55%;
-  height: 55%;
-}
-.pill-btn {
-  padding: 0 calc(var(--u) * 0.9);
-  gap: calc(var(--u) * 1);
-}
-.pill-btn svg {
-  width: calc(var(--u) * 1.9);
-  height: calc(var(--u) * 1.9);
-}
-.chat {
-  position: relative;
-  display: flex;
-}
-.badge {
-  position: absolute;
-  top: calc(var(--u) * -0.6);
-  right: calc(var(--u) * -0.8);
-  background: #3b6cff;
+.identity-chip img {
+  width: calc(var(--u) * 2.2);
+  height: calc(var(--u) * 2.2);
   border-radius: 999px;
-  font-family: system-ui, sans-serif;
-  font-weight: 700;
-  font-size: calc(var(--u) * 0.85);
-  padding: 0 calc(var(--u) * 0.35);
-  line-height: 1.35;
+  object-fit: cover;
+}
+.identity-name {
+  font-weight: 600;
+}
+.identity-sub,
+.auth-status {
+  opacity: 0.65;
+}
+.auth-panel {
+  right: calc(var(--u) * 1.1);
+  pointer-events: auto;
+}
+.auth-btn {
+  width: 100%;
+  min-width: calc(var(--u) * 10);
+  color: #fff;
+  background: rgba(241, 245, 249, 0.12);
+  border-radius: calc(var(--u) * 0.3);
+  padding: calc(var(--u) * 0.4) calc(var(--u) * 0.8);
+  font: inherit;
+}
+.auth-btn.login {
+  background: #059669;
+  border: 1px solid rgba(52, 211, 153, 0.5);
+  font-weight: 600;
+}
+.auth-btn:disabled {
+  opacity: 0.5;
 }
 
 /* tutorial quest banner */
@@ -208,12 +208,122 @@ canvas {
 .stat-rebirth {
   color: #7fdcff;
 }
-.rebirth-btn {
-  background: none;
-  padding: 0;
+/* left menu grid (Shop / Rebirth / Pets / Stones / Inventory / Gifts) */
+.left-menu {
+  position: absolute;
+  left: calc(var(--u) * 1.5);
+  bottom: calc(var(--u) * 13);
+  display: grid;
+  grid-template-columns: repeat(2, calc(var(--u) * 5.6));
+  gap: calc(var(--u) * 0.5);
+  pointer-events: auto;
 }
-.rebirth-btn.ready .stat-icon {
+.menu-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: calc(var(--u) * 5.6);
+  padding: 0;
+  border: calc(var(--u) * 0.25) solid #111;
+  border-radius: calc(var(--u) * 0.7);
+  box-shadow: inset 0 calc(var(--u) * 0.25) 0 rgba(255, 255, 255, 0.4), inset 0 calc(var(--u) * -0.3) 0 rgba(0, 0, 0, 0.25);
+}
+.menu-tile:hover {
+  filter: brightness(1.12);
+  transform: scale(1.06);
+}
+.menu-tile-icon {
+  font-size: calc(var(--u) * 2.6);
+  line-height: 1;
+}
+.menu-tile-label {
+  font-size: calc(var(--u) * 1.25);
+}
+.tile-red { background: linear-gradient(#ff6a6a, #c2262e); }
+.tile-pink { background: linear-gradient(#ff6fae, #d63384); }
+.tile-brown { background: linear-gradient(#c98a5a, #7a4322); }
+.tile-grey { background: linear-gradient(#a8b0bd, #5b6472); }
+.tile-tan { background: linear-gradient(#d9a066, #8a5a2b); }
+.tile-blue { background: linear-gradient(#5ec8ff, #1f8fe0); }
+.menu-pct {
+  position: absolute;
+  top: calc(var(--u) * -1);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: calc(var(--u) * 1.4);
+}
+.menu-alert {
+  position: absolute;
+  top: calc(var(--u) * -0.6);
+  right: calc(var(--u) * -0.6);
+  width: calc(var(--u) * 1.8);
+  height: calc(var(--u) * 1.8);
+  border: calc(var(--u) * 0.15) solid #fff;
+  border-radius: 50%;
+  background: #e11d2e;
+  color: #fff;
+  font-size: calc(var(--u) * 1.2);
+  font-weight: 900;
+  line-height: calc(var(--u) * 1.5);
+  text-align: center;
+}
+.menu-tile.ready .menu-tile-icon {
   animation: rebirth-ready 0.9s ease-in-out infinite alternate;
+}
+.menu-modal-body {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.menu-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: calc(var(--u) * 1);
+  width: 100%;
+}
+.menu-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--u) * 0.3);
+  width: calc(var(--u) * 12);
+  padding: calc(var(--u) * 1);
+  border: calc(var(--u) * 0.2) solid #111;
+  border-radius: calc(var(--u) * 0.8);
+  background: #475569;
+}
+.menu-card.boost {
+  justify-content: center;
+  height: calc(var(--u) * 8);
+}
+.menu-card.active {
+  box-shadow: 0 0 0 calc(var(--u) * 0.3) #a3e635;
+}
+.menu-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.menu-card-icon {
+  font-size: calc(var(--u) * 3.2);
+  line-height: 1;
+}
+.menu-card-name {
+  font-size: calc(var(--u) * 1.5);
+  text-align: center;
+}
+.menu-card-sub {
+  font-size: calc(var(--u) * 1.3);
+  color: #fcd34d;
+}
+.menu-sub {
+  align-self: flex-start;
+  font-size: calc(var(--u) * 1.8);
+}
+.menu-empty {
+  font-size: calc(var(--u) * 1.8);
+  padding: calc(var(--u) * 2);
 }
 @keyframes rebirth-ready {
   to {
@@ -319,6 +429,36 @@ canvas {
 }
 .rebirth-confirm:hover:not(:disabled) {
   filter: brightness(1.1);
+}
+/* Tutorial spotlight: a full-screen dim that also blocks clicks, with the target lifted above it. */
+.tutorial-dim {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  background: rgba(0, 0, 0, 0.7);
+  pointer-events: auto;
+}
+.quest {
+  z-index: 41; /* stays readable above .tutorial-dim */
+}
+.quest-leaving {
+  animation: quest-pop-out 0.5s ease-in forwards;
+  pointer-events: none;
+}
+@keyframes quest-pop-out {
+  0% { opacity: 1; transform: translateX(-50%) scale(1); }
+  30% { opacity: 1; transform: translateX(-50%) scale(1.15); }
+  100% { opacity: 0; transform: translateX(-50%) scale(0.2); }
+}
+.menu-tile.tutorial-spot {
+  z-index: 41;
+  box-shadow: 0 0 0 calc(var(--u) * 0.35) #ffd84a, 0 0 calc(var(--u) * 2) #ffd84a;
+}
+/* In the window the modal backdrop already blocks clicks; a huge shadow dims the rest of the modal. */
+.rebirth-confirm.tutorial-spot-window {
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 0 0 calc(var(--u) * 0.35) #ffd84a, 0 0 0 200vmax rgba(0, 0, 0, 0.6);
 }
 .rebirth-confirm:disabled {
   cursor: not-allowed;
@@ -470,103 +610,6 @@ canvas {
   height: calc(var(--u) * 1.5);
 }
 
-/* ---------- Bloxity: auth, friends, balance ---------- */
-.auth-pill {
-  font-size: calc(var(--u) * 1.15);
-  padding: 0 calc(var(--u) * 1.3);
-}
-.auth-account {
-  position: relative;
-}
-.auth-avatar {
-  overflow: hidden;
-  font-size: calc(var(--u) * 1.5);
-}
-.auth-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 999px;
-}
-.auth-menu {
-  pointer-events: auto;
-  position: absolute;
-  top: calc(var(--u) * 3.8);
-  right: 0;
-  background: rgba(22, 24, 28, 0.94);
-  border-radius: calc(var(--u) * 0.5);
-  padding: calc(var(--u) * 0.7);
-  display: flex;
-  flex-direction: column;
-  gap: calc(var(--u) * 0.4);
-  min-width: calc(var(--u) * 12);
-}
-.auth-name {
-  font-size: calc(var(--u) * 1.1);
-  white-space: nowrap;
-}
-.auth-logout {
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
-  border-radius: calc(var(--u) * 0.4);
-  padding: calc(var(--u) * 0.35) calc(var(--u) * 0.6);
-  font-family: system-ui, sans-serif;
-  font-size: calc(var(--u) * 0.95);
-}
-.bux-balance {
-  font-family: system-ui, sans-serif;
-  font-weight: 700;
-}
-.friends-panel-wrap {
-  position: relative;
-}
-.friends-panel {
-  pointer-events: auto;
-  position: absolute;
-  top: calc(var(--u) * 3.8);
-  left: 0;
-  background: rgba(22, 24, 28, 0.94);
-  border-radius: calc(var(--u) * 0.5);
-  padding: calc(var(--u) * 0.8);
-  min-width: calc(var(--u) * 16);
-  display: flex;
-  flex-direction: column;
-  gap: calc(var(--u) * 0.5);
-}
-.friends-title {
-  font-size: calc(var(--u) * 1.2);
-}
-.friends-empty {
-  font-family: system-ui, sans-serif;
-  font-size: calc(var(--u) * 0.9);
-  opacity: 0.7;
-}
-.friend-row {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--u) * 0.5);
-  font-family: system-ui, sans-serif;
-  font-size: calc(var(--u) * 0.95);
-}
-.presence-dot {
-  width: calc(var(--u) * 0.7);
-  height: calc(var(--u) * 0.7);
-  border-radius: 999px;
-  flex: none;
-}
-.friend-name {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.friend-invite {
-  background: #3b6cff;
-  color: #fff;
-  border-radius: calc(var(--u) * 0.4);
-  padding: calc(var(--u) * 0.25) calc(var(--u) * 0.6);
-  font-size: calc(var(--u) * 0.85);
-}
 .fps-counter {
   position: fixed;
   top: calc(var(--u) * 5.5);
