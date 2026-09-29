@@ -3,13 +3,14 @@ import { createPortal } from 'react-dom'
 import { useGameStore } from '../store/useGameStore.js'
 import { purchase } from '../systems/bloxity.js'
 import { findPet, MAX_EQUIPPED_PETS } from '../systems/eggPanel.js'
-import { SKILL_STONES } from '../data/world.js'
+import { SHOW_ADDON, SKILL_STONES } from '../data/world.js'
 import { BOOSTS } from '../data/boosts.js'
 import { canAcceptRebirth, levelForSkill, rebirthLevelsRequired } from '../data/progression.js'
 import { formatNumber } from '../utils/formatNumber.js'
 
 // Left-edge menu grid (Shop, Rebirth, Pets, Stones, Inventory, Gifts). Rebirth
-// reuses Hud's RebirthWindow via onRebirth; the rest open a modal from here.
+// reuses Hud's RebirthWindow via onRebirth; the rest open a modal from here and
+// are hidden unless VITE_SHOW_ADDON=true.
 const TILES = [
   { id: 'shop', label: 'Shop', icon: '🛍️', tile: 'red' },
   { id: 'rebirth', label: 'Rebirth', icon: '🔄', tile: 'pink' },
@@ -172,7 +173,7 @@ export default function LeftMenu({ onRebirth, spotlightRebirth = false }) {
   return (
     <>
       <div className="left-menu">
-        {TILES.map((t) => (
+        {TILES.filter((t) => SHOW_ADDON || t.id === 'rebirth').map((t) => (
           <button
             key={t.id}
             type="button"
