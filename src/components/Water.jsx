@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { CanvasTexture, RepeatWrapping, SRGBColorSpace } from 'three'
-import { LAKE, WATER_Y } from '../data/world.js'
+import { CanvasTexture, PlaneGeometry, RepeatWrapping, SRGBColorSpace } from 'three'
+import { LAKE, LAKE_ZONES, WATER_Y } from '../data/world.js'
 
 // Metres of water covered by one ripple tile, and how fast the ripples
 // drift (tiles per second).
@@ -10,16 +10,39 @@ const RIPPLE_DRIFT = { x: 0.01, y: 0.006 }
 
 // The canal past the throw zone, running south between its banks. It
 // extends a little under the grass slab and the banks so there are no gaps.
+// Consecutive LAKE_ZONES with the same water colour share one piece.
 const LAKE_W = LAKE.maxX - LAKE.minX + 2
-const LAKE_D = LAKE.maxZ - LAKE.minZ + 10
+const LAKE_MID_X = (LAKE.minX + LAKE.maxX) / 2
+const SEGMENTS = LAKE_ZONES.reduce((segs, zone, i) => {
+  const z0 = i === 0 ? LAKE.minZ - 10 : zone.startZ
+  const z1 = i === LAKE_ZONES.length - 1 ? LAKE.maxZ : LAKE_ZONES[i + 1].startZ
+  const prev = segs[segs.length - 1]
+  if (prev && prev.color === zone.water) prev.z1 = z1
+  else segs.push({ color: zone.water, z0, z1 })
+  return segs
+}, [])
 
-function makeRippleTexture() {
+// A flat water piece whose UVs are world XZ in ripple tiles, so ripples line
+// up across the seams between pieces.
+function makeSegmentGeometry({ z0, z1 }) {
+  const geo = new PlaneGeometry(LAKE_W, z1 - z0)
+  const zMid = (z0 + z1) / 2
+  const pos = geo.attributes.position
+  const uv = geo.attributes.uv
+  for (let i = 0; i < pos.count; i++) {
+    // rotated -90 deg about X: local y becomes world -z
+    uv.setXY(i, (pos.getX(i) + LAKE_MID_X) / RIPPLE_TILE, (pos.getY(i) - zMid) / RIPPLE_TILE)
+  }
+  return geo
+}
+
+function makeRippleTexture(color) {
   const size = 128
   const canvas = document.createElement('canvas')
   canvas.width = size
   canvas.height = size
   const ctx = canvas.getContext('2d')
-  ctx.fillStyle = '#14cbe6'
+  ctx.fillStyle = color
   ctx.fillRect(0, 0, size, size)
   ctx.strokeStyle = 'rgba(255,255,255,0.14)'
   ctx.lineWidth = 2
@@ -38,30 +61,38 @@ function makeRippleTexture() {
 }
 
 export default function Water() {
-  const texture = useMemo(() => {
-    const t = makeRippleTexture()
-    t.colorSpace = SRGBColorSpace
-    t.repeat.set(LAKE_W / RIPPLE_TILE, LAKE_D / RIPPLE_TILE)
-    return t
-  }, [])
+  const pieces = useMemo(
+    () =>
+      SEGMENTS.map((seg) => {
+        const texture = makeRippleTexture(seg.color)
+        texture.colorSpace = SRGBColorSpace
+        return { ...seg, texture, geometry: makeSegmentGeometry(seg) }
+      }),
+    [],
+  )
 
   useFrame((_state, delta) => {
-    texture.offset.x = (texture.offset.x + delta * RIPPLE_DRIFT.x) % 1
-    texture.offset.y = (texture.offset.y + delta * RIPPLE_DRIFT.y) % 1
+    for (const { texture } of pieces) {
+      texture.offset.x = (texture.offset.x + delta * RIPPLE_DRIFT.x) % 1
+      texture.offset.y = (texture.offset.y + delta * RIPPLE_DRIFT.y) % 1
+    }
   })
 
-  useEffect(() => () => texture.dispose(), [texture])
+  useEffect(
+    () => () => {
+      for (const { texture, geometry } of pieces) {
+        texture.dispose()
+        geometry.dispose()
+      }
+    },
+    [pieces],
+  )
 
-  return (
-    <mesh
-      position={[(LAKE.minX + LAKE.maxX) / 2, WATER_Y, (LAKE.minZ - 10 + LAKE.maxZ) / 2]}
-      rotation={[-Math.PI / 2, 0, 0]}
-      receiveShadow
-    >
-      <planeGeometry args={[LAKE_W, LAKE_D]} />
-      {/* Unlit, like Roblox water: keeps its flat saturated cyan under the
+  return pieces.map(({ z0, z1, texture, geometry }) => (
+    <mesh key={z0} position={[LAKE_MID_X, WATER_Y, (z0 + z1) / 2]} rotation={[-Math.PI / 2, 0, 0]} geometry={geometry} receiveShadow>
+      {/* Unlit, like Roblox water: keeps its flat saturated colour under the
           bright lobby lighting instead of washing out. */}
       <meshBasicMaterial map={texture} toneMapped={false} />
     </mesh>
-  )
+  ))
 }

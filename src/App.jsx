@@ -1,4 +1,4 @@
-import { Suspense, useEffect } from 'react'
+import { Suspense, useCallback, useEffect, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { PCFSoftShadowMap, SRGBColorSpace } from 'three'
 import { notifyFirstFrame } from './systems/bloxity.js'
@@ -20,8 +20,11 @@ import Trees from './components/Trees.jsx'
 import Decor from './components/Decor.jsx'
 import GuideArrows from './components/GuideArrows.jsx'
 import Player from './components/Player.jsx'
+import RemotePlayers from './components/RemotePlayers.jsx'
 import ThrownStones from './components/ThrownStones.jsx'
+import Splashes from './components/Splashes.jsx'
 import Hud from './components/Hud.jsx'
+import LoadingScreen from './components/LoadingScreen.jsx'
 
 const SKY = { top: '#6fbdf2', mid: '#b4def8', bottom: '#def0fb' }
 
@@ -29,10 +32,11 @@ const SKY = { top: '#6fbdf2', mid: '#b4def8', bottom: '#def0fb' }
 // mounts once every suspending resource in the scene (including the
 // Bloxity avatar) has resolved — the right moment to tell the SDK loading
 // is done and gameplay has started.
-function LoadingGate() {
+function LoadingGate({ onReady }) {
   useEffect(() => {
     notifyFirstFrame()
-  }, [])
+    onReady()
+  }, [onReady])
   return null
 }
 
@@ -45,6 +49,8 @@ const GRAPHICS_PRESETS = {
 
 export default function App() {
   useSettings()
+  const [sceneReady, setSceneReady] = useState(false)
+  const onSceneReady = useCallback(() => setSceneReady(true), [])
   const preset = GRAPHICS_PRESETS[settings.graphics_quality] ?? GRAPHICS_PRESETS.High
 
   return (
@@ -75,11 +81,14 @@ export default function App() {
           <Decor />
           <GuideArrows />
           <ThrownStones />
-          <LoadingGate />
+          <Splashes />
+          <LoadingGate onReady={onSceneReady} />
         </Suspense>
         <Player />
+        <RemotePlayers />
       </Canvas>
       <Hud />
+      <LoadingScreen sceneReady={sceneReady} />
     </>
   )
 }

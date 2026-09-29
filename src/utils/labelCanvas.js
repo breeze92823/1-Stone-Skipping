@@ -8,7 +8,7 @@ import { CanvasTexture, SRGBColorSpace } from 'three'
 // so labels read consistently next to each other.
 //
 //   line:  { size, fill?, pill?, italic?, parts | text }
-//   part:  { text, fill? } | { icon: 'trophy' | 'robux' | 'rebirth' | 'bolt' | 'palm', color? }
+//   part:  { text, fill? } | { icon: 'trophy' | 'robux' | 'rebirth' | 'bolt' | 'palm' | 'cactus' | 'maple' | 'snowflake' | 'mushroom' | 'lollipop' | 'gem' | 'flame' | 'sparkle', color? }
 //   fill:  CSS colour | [top, bottom] vertical gradient | 'rainbow'
 export const LABEL_FONT = '"Fredoka One", "Arial Rounded MT Bold", "Trebuchet MS", sans-serif'
 const RES = 110 // canvas px per metre
@@ -185,6 +185,187 @@ export function drawIcon(ctx, icon, cx, cy, s, color) {
       ctx.strokeStyle = '#3fcf45'
       ctx.lineWidth = s * 0.08
       ctx.stroke()
+    }
+  } else if (icon === 'cactus') {
+    // Saguaro with two raised arms, like the 🌵 in the Cactus Desert sign.
+    const arm = (x0, y0, x1, y1) => {
+      ctx.beginPath()
+      ctx.moveTo(cx + s * x0, cy + s * y0)
+      ctx.lineTo(cx + s * x1, cy + s * y0)
+      ctx.lineTo(cx + s * x1, cy + s * y1)
+      ctx.stroke()
+    }
+    const trunk = () => {
+      ctx.beginPath()
+      ctx.moveTo(cx, cy + s * 0.46)
+      ctx.lineTo(cx, cy - s * 0.4)
+      ctx.stroke()
+    }
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    for (const [style, width] of [['#111', 0.3], ['#3fbf3a', 0.18]]) {
+      ctx.strokeStyle = style
+      ctx.lineWidth = s * width
+      trunk()
+      arm(0, 0.12, -0.28, -0.18)
+      arm(0, -0.02, 0.28, -0.3)
+    }
+  } else if (icon === 'maple') {
+    // Red maple leaf on a short stem, like the 🍁 in the Autumn Woods sign.
+    const half = [
+      [0, -0.48], [0.1, -0.28], [0.2, -0.33], [0.16, -0.1], [0.4, -0.24], [0.35, -0.11],
+      [0.47, -0.05], [0.26, 0.1], [0.3, 0.2], [0.06, 0.14], [0.04, 0.3],
+    ]
+    const pts = [...half, ...half.slice(1).reverse().map(([x, y]) => [-x, y])]
+    ctx.lineJoin = 'round'
+    ctx.lineCap = 'round'
+    ctx.strokeStyle = '#111'
+    ctx.lineWidth = lw
+    ctx.beginPath()
+    ctx.moveTo(cx, cy + s * 0.14)
+    ctx.lineTo(cx, cy + s * 0.48)
+    ctx.stroke()
+    ctx.beginPath()
+    pts.forEach(([x, y], i) => (i ? ctx.lineTo : ctx.moveTo).call(ctx, cx + s * x, cy + s * y))
+    ctx.closePath()
+    ctx.fillStyle = color ?? '#e8261c'
+    ctx.fill()
+    ctx.stroke()
+  } else if (icon === 'sparkle') {
+    // Big four-point gold star with a small one, like the sparkles flanking the Starfall Shores sign.
+    ctx.lineJoin = 'round'
+    ctx.lineWidth = lw
+    ctx.strokeStyle = '#111'
+    ctx.fillStyle = color ?? '#ffcf2e'
+    const star = (x, y, r) => {
+      ctx.beginPath()
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2 - Math.PI / 2
+        const d = i % 2 ? r * 0.28 : r
+        const px = x + Math.cos(a) * d
+        const py = y + Math.sin(a) * d
+        if (i === 0) ctx.moveTo(px, py)
+        else ctx.lineTo(px, py)
+      }
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
+    }
+    star(cx - s * 0.06, cy + s * 0.04, s * 0.46)
+    star(cx + s * 0.34, cy - s * 0.32, s * 0.16)
+  } else if (icon === 'flame') {
+    // Two-tone flame, like the fires flanking the Ember River sign.
+    ctx.lineJoin = 'round'
+    ctx.lineWidth = lw
+    ctx.strokeStyle = '#111'
+    const flame = (k, fill) => {
+      ctx.beginPath()
+      ctx.moveTo(cx, cy - s * 0.5 * k + s * (1 - k) * 0.46)
+      ctx.bezierCurveTo(cx + s * 0.1 * k, cy - s * 0.2 * k + s * (1 - k) * 0.46, cx + s * 0.44 * k, cy - s * 0.06 * k + s * (1 - k) * 0.46, cx + s * 0.36 * k, cy + s * 0.26 * k + s * (1 - k) * 0.46)
+      ctx.bezierCurveTo(cx + s * 0.3 * k, cy + s * 0.48, cx - s * 0.3 * k, cy + s * 0.48, cx - s * 0.36 * k, cy + s * 0.26 * k + s * (1 - k) * 0.46)
+      ctx.bezierCurveTo(cx - s * 0.42 * k, cy - s * 0.04 * k + s * (1 - k) * 0.46, cx - s * 0.12 * k, cy - s * 0.18 * k + s * (1 - k) * 0.46, cx, cy - s * 0.5 * k + s * (1 - k) * 0.46)
+      ctx.closePath()
+      ctx.fillStyle = fill
+      ctx.fill()
+      if (k === 1) ctx.stroke()
+    }
+    flame(1, color ?? '#ff8a1f')
+    flame(0.55, '#ffd23f')
+  } else if (icon === 'gem') {
+    // Faceted diamond, like the gems flanking the Crystal Valley sign.
+    ctx.lineJoin = 'round'
+    ctx.lineWidth = lw
+    ctx.strokeStyle = '#111'
+    const g = (x, y) => [cx + s * x, cy + s * y]
+    const poly = (pts, fill) => {
+      ctx.beginPath()
+      pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)))
+      ctx.closePath()
+      ctx.fillStyle = fill
+      ctx.fill()
+      ctx.stroke()
+    }
+    const base = color ?? '#3fb8f5'
+    poly([g(-0.46, -0.14), g(-0.26, -0.4), g(0.26, -0.4), g(0.46, -0.14), g(0, 0.46)], base)
+    poly([g(-0.26, -0.4), g(-0.12, -0.14), g(-0.46, -0.14)], '#8fdcff')
+    poly([g(0.26, -0.4), g(0.46, -0.14), g(0.12, -0.14)], '#1f8fd8')
+    poly([g(-0.12, -0.14), g(0.12, -0.14), g(0, 0.46)], '#2aa6ec')
+  } else if (icon === 'lollipop') {
+    // Swirled lollipop on a slanted stick, like the lollipop in the Candy Banks sign.
+    ctx.lineCap = 'round'
+    ctx.strokeStyle = '#111'
+    ctx.lineWidth = s * 0.2
+    ctx.beginPath()
+    ctx.moveTo(cx + s * 0.12, cy + s * 0.1)
+    ctx.lineTo(cx + s * 0.4, cy + s * 0.44)
+    ctx.stroke()
+    ctx.strokeStyle = '#ffb347'
+    ctx.lineWidth = s * 0.1
+    ctx.stroke()
+    ctx.lineWidth = lw
+    ctx.strokeStyle = '#111'
+    ctx.fillStyle = color ?? '#ff5a3c'
+    ctx.beginPath()
+    ctx.arc(cx - s * 0.06, cy - s * 0.1, s * 0.34, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.stroke()
+    ctx.strokeStyle = '#ffe9a8'
+    ctx.lineWidth = s * 0.07
+    ctx.beginPath()
+    for (let t = 0; t <= 4.2 * Math.PI; t += 0.3) {
+      const r = s * 0.025 * t
+      const x = cx - s * 0.06 + Math.cos(t) * r
+      const y = cy - s * 0.1 + Math.sin(t) * r
+      if (t === 0) ctx.moveTo(x, y)
+      else ctx.lineTo(x, y)
+    }
+    ctx.stroke()
+  } else if (icon === 'mushroom') {
+    // Red spotted mushroom, like the 🍄 in the Mushroom Marsh sign.
+    ctx.lineJoin = 'round'
+    ctx.lineWidth = lw
+    ctx.strokeStyle = '#111'
+    ctx.fillStyle = '#f3e6d0'
+    ctx.beginPath()
+    ctx.roundRect(cx - s * 0.16, cy - s * 0.02, s * 0.32, s * 0.5, s * 0.08)
+    ctx.fill()
+    ctx.stroke()
+    ctx.fillStyle = color ?? '#e8261c'
+    ctx.beginPath()
+    ctx.moveTo(cx - s * 0.46, cy + s * 0.04)
+    ctx.quadraticCurveTo(cx - s * 0.46, cy - s * 0.5, cx, cy - s * 0.5)
+    ctx.quadraticCurveTo(cx + s * 0.46, cy - s * 0.5, cx + s * 0.46, cy + s * 0.04)
+    ctx.closePath()
+    ctx.fill()
+    ctx.stroke()
+    ctx.fillStyle = '#fff'
+    for (const [dx, dy, r] of [[-0.22, -0.16, 0.08], [0.02, -0.3, 0.07], [0.22, -0.13, 0.08]]) {
+      ctx.beginPath()
+      ctx.arc(cx + s * dx, cy + s * dy, s * r, 0, Math.PI * 2)
+      ctx.fill()
+    }
+  } else if (icon === 'snowflake') {
+    // Six-armed snowflake with little side spurs, like the sign's icy flakes.
+    ctx.lineCap = 'round'
+    for (const [style, width] of [['#111', 0.2], ['#eafcff', 0.1]]) {
+      ctx.strokeStyle = style
+      ctx.lineWidth = s * width
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2
+        const dx = Math.cos(a)
+        const dy = Math.sin(a)
+        ctx.beginPath()
+        ctx.moveTo(cx, cy)
+        ctx.lineTo(cx + dx * s * 0.46, cy + dy * s * 0.46)
+        for (const side of [-1, 1]) {
+          const bx = cx + dx * s * 0.28
+          const by = cy + dy * s * 0.28
+          const sa = a + side * 0.9
+          ctx.moveTo(bx, by)
+          ctx.lineTo(bx + Math.cos(sa) * s * 0.16, by + Math.sin(sa) * s * 0.16)
+        }
+        ctx.stroke()
+      }
     }
   } else if (icon === 'bolt') {
     ctx.fillStyle = color ?? '#ffcf1f'

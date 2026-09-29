@@ -1,0 +1,77 @@
+name: Deploy to Bloxity
+
+on:
+  push:
+    branches: [main, dev]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Determine deploy channel
+        id: channel
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "channel=prod" >> "$GITHUB_OUTPUT"
+          else
+            echo "channel=dev" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate server URL
+        # A missing URL would otherwise silently ship a build that plays solo
+        # (prod) or points at ws://localhost:2567 (dev) -- fail loudly instead.
+        run: |
+          if [ "${{ steps.channel.outputs.channel }}" = "prod" ]; then
+            NAME=SERVER_URL_MAIN; URL="${SERVER_URL_MAIN}"
+          else
+            NAME=SERVER_URL_DEV; URL="${SERVER_URL_DEV}"
+          fi
+          if [ -z "${URL}" ]; then
+            echo "::error::${NAME} is not set (Settings > Secrets and variables > Actions > Variables). Set it to the deployed backend's wss:// address."
+            exit 1
+          fi
+          case "${URL}" in
+            wss://*|ws://*|https://*|http://*) ;;
+            *) echo "::error::${NAME} must start with wss:// or https:// (got '${URL}')."; exit 1 ;;
+          esac
+        env:
+          SERVER_URL_DEV: ${{ vars.SERVER_URL_DEV || secrets.SERVER_URL_DEV }}
+          SERVER_URL_MAIN: ${{ vars.SERVER_URL_MAIN || secrets.SERVER_URL_MAIN }}
+
+      - name: Build
+        # The dev channel builds with `--mode development` (npm run build:dev),
+        # so src/data/net.js picks VITE_SERVER_URL_DEV; prod picks
+        # VITE_SERVER_URL_MAIN. Stone-Skipping-backend deploys the same two
+        # channels independently (its own deploy.yml). Repo VARIABLES are
+        # preferred (a server address isn't secret); same-named secrets still work.
+        env:
+          VITE_SERVER_URL_DEV: ${{ vars.SERVER_URL_DEV || secrets.SERVER_URL_DEV }}
+          VITE_SERVER_URL_MAIN: ${{ vars.SERVER_URL_MAIN || secrets.SERVER_URL_MAIN }}
+        run: |
+          if [ "${{ steps.channel.outputs.channel }}" = "prod" ]; then
+            npm run build
+          else
+            npm run build:dev
+          fi
+
+      - name: Zip build
+        run: cd dist && zip -r ../build.zip . && cd ..
+
+      - name: Upload to Bloxity
+        run: |
+          curl -sS -f -X POST \
+            "https://api.bloxity.io/v1/hosting/games/${{ vars.LEGION_GAME_ID || secrets.LEGION_GAME_ID }}/frontend?channel=${{ steps.channel.outputs.channel }}&version=${{ github.sha }}" \
+            -H "Authorization: Bearer ${{ secrets.LEGION_DEPLOY_TOKEN }}" \
+            -H "Content-Type: application/zip" \
+            --data-binary @build.zip \
+            -w "\nHTTP status: %{http_code}\n"

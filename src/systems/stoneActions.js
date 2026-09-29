@@ -1,17 +1,22 @@
 import { Vector3 } from 'three'
 import { inputState, setMoveLocked } from './input.js'
 import { player } from './playerState.js'
+import { spawnSplash } from './splashes.js'
+import { playWaterSplash } from './sfx.js'
+import { spawnActionPopup } from './actionPopups.js'
 import { terrainHeightAt, waterAt, isInsideCliffs } from './terrainHeight.js'
 import { useGameStore } from '../store/useGameStore.js'
-import { isPoolUnlocked, isInThrowZone, POOLS, poolInsetRect, WATER_Y } from '../data/world.js'
+import { THROW_ONESHOT_TIME, THROW_RELEASE_DELAY } from './avatarAnim.js'
+import { canalReach, lakeWinsForDistance } from '../data/progression.js'
+import { isPoolUnlocked, isInThrowZone, LAKE, LAKE_END, POOLS, poolInsetRect, SKILL_STONES, WATER_Y } from '../data/world.js'
 
 // The player's core action: throw the stone in hand and let it skip across
-// whatever water it lands on. Skips in an unlocked training pool earn skill
-// (x the pool's multiplier) and a landing there earns level XP; skips on the
+// whatever water it lands on. Each throw from an unlocked training
+// pool pad earns skill once, on release (the pool's labelled amount), and level follows from skill; skips on the
 // lake past the throw zone earn wins. Thrown stones are a plain array
 // singleton (not zustand) since they're rewritten every frame —
 // ThrownStones.jsx reads this directly in its own useFrame.
-export const thrownStones = [] // { position, velocity, skips, pool, lake }
+export const thrownStones = [] // { position, velocity, model, skips, pool, lake }
 
 // The stone the camera should follow instead of the player, set when a
 // throw is made from inside the Throw Zone and cleared once that stone
@@ -35,9 +40,34 @@ const MIN_BOUNCE_SPEED = 2.5 // m/s below which a stone just sinks instead
 const MAX_SHALLOW_ANGLE = 0.55 // rad (~31deg); steeper impacts sink instead of skip
 const MAX_SKIPS = 12
 const RELOAD_TIME = 0.45 // s before the next stone is in hand
+const CAMERA_RETURN_TIME = 0.8 // s after a tracked stone lands for the camera to ease back to the player
+
+// Throws from the Throw Zone skip the canal like a real stone: the first hops are
+// fast and high, then speed and hop height both fade steadily over the stone's
+// range (set by Skill, see canalReach) until it is barely ticking along the water.
+// Hop length = speed * 2 * vy / -GRAVITY, so hops shorten as the stone tires.
+const LAKE_THROW_SPEED = 200 // m/s horizontal at release and on the first hops
+const LAKE_HOP_VY = 13.9 // m/s up after the first lake skip; peaks ~6 m
+const LAKE_FADE_END = 0.5 // fraction of speed/hop height left at the end of the run, where the stone stops
+const LAKE_MIN_SPEED_SCALE = 0.3 // floor on the speed/hop scale for the shortest canal runs
+const LAKE_AIM_MARGIN = 3 // m kept off the canal's side banks when aiming
+const BEACH_AIM_Z = LAKE.maxZ - LAKE_END.depth / 2
+
+// 1 at the start of a canal run, easing down to LAKE_FADE_END as the stone
+// covers its full range `runLength`; the run ends (stone stops in the water) at LAKE_FADE_END.
+function lakeFade(dist, runLength) {
+  return 1 - (1 - LAKE_FADE_END) * Math.min(Math.max(dist / runLength, 0), 1)
+}
 
 const _dir = new Vector3()
 let reloadTimer = 0
+let pendingThrow = null // { t, dir, inZone }: throw animating, stone not yet released
+let throwLock = 0 // s left of the throw animation; movement is held until 0
+
+// Skill an equipped Skill Stone adds to every pad throw.
+function equippedStoneValue(id) {
+  return SKILL_STONES.find((s) => s.model === id)?.value ?? 1
+}
 
 export function throwSpeed(skill) {
   return BASE_THROW_SPEED + SKILL_SPEED * Math.log10(1 + skill)
@@ -57,9 +87,10 @@ export function stepPickupAndThrow(camera, dt) {
   const poolId = pool ? pool.id : null
   if (poolId !== store.currentPoolId) {
     store.setCurrentPoolId(poolId)
-    if (poolId) {
-      // Parked on a throwing pad: playerMovement walks the player to its
-      // centre and turns them to the water; Space frees them.
+    if (poolId && isPoolUnlocked(pool, store.rebirths)) {
+      // Parked on an unlocked throwing pad: playerMovement walks the player to its
+      // centre and turns them to the water; Space frees them. Locked pads leave
+      // WASD and movement alone.
       setMoveLocked(true)
       const r = poolInsetRect(pool)
       player.padTarget = { x: (r.x0 + r.x1) / 2, z: (r.z0 + r.z1) / 2 }
@@ -67,45 +98,109 @@ export function stepPickupAndThrow(camera, dt) {
     }
   }
 
-  if (!store.stoneReady) {
+  if (!store.stoneReady && !trackedStone) {
     reloadTimer -= dt
     if (reloadTimer <= 0) store.reloadStone()
   }
 
-  if (inputState.throwPressed) {
+  // Parked at the centre of an unlocked pad: keep throwing on its own, so
+  // every throw animation earns the pool's skill.
+  const autoPad = !!pool && player.atPad && inputState.moveLocked && isPoolUnlocked(pool, store.rebirths)
+  const autoThrow = autoPad && store.stoneReady && !pendingThrow && throwLock <= 0
+
+  // A press starts the throw animation; the stone itself leaves the hand
+  // THROW_RELEASE_DELAY later, and the player stays planted until the
+  // follow-through finishes.
+  // On a locked pad there is nothing to throw into: no animation at all.
+  const padLocked = !!pool && !isPoolUnlocked(pool, store.rebirths)
+  player.padUnlocked = !!pool && !padLocked
+  if (inputState.throwPressed || autoThrow) {
     inputState.throwPressed = false
-    if (store.stoneReady) {
-      camera.getWorldDirection(_dir)
-      _dir.y = 0
-      _dir.normalize()
-      const speed = throwSpeed(store.skill)
-      const vy = speed * Math.sin(THROW_UP_ANGLE)
-      const vh = speed * Math.cos(THROW_UP_ANGLE)
-      const stone = {
-        position: new Vector3(player.position.x + _dir.x * 0.4, player.position.y + 1.1, player.position.z + _dir.z * 0.4),
-        velocity: new Vector3(_dir.x * vh, vy, _dir.z * vh),
-        skips: 0,
-        pool: null,
-        lake: false,
+    if (!padLocked && store.stoneReady && !pendingThrow && throwLock <= 0) {
+      if (autoThrow) {
+        _dir.set(-1, 0, 0) // pads face west, toward the water
+      } else if (nowInZone) {
+        // Aim down the canal at the end beach, staying clear of the side banks.
+        const aimX = Math.min(Math.max(player.position.x, LAKE.minX + LAKE_AIM_MARGIN), LAKE.maxX - LAKE_AIM_MARGIN)
+        _dir.set(aimX - player.position.x, 0, BEACH_AIM_Z - player.position.z)
+      } else {
+        camera.getWorldDirection(_dir)
+        _dir.y = 0
       }
-      thrownStones.push(stone)
-      // Cinematic camera follow only kicks in for a throw made from the
-      // Throw Zone, and only if nothing is already being tracked.
-      if (nowInZone && !trackedStone) trackedStone = stone
+      _dir.normalize()
+      pendingThrow = { t: THROW_RELEASE_DELAY, dir: _dir.clone(), inZone: nowInZone }
+      throwLock = THROW_ONESHOT_TIME
       player.facing = Math.atan2(_dir.x, _dir.z)
-      store.throwStone()
-      reloadTimer = RELOAD_TIME
+      player.throwCount += 1
     }
   }
+
+  if (throwLock > 0) throwLock -= dt
+  player.throwing = throwLock > 0
+
+  if (pendingThrow) {
+    pendingThrow.t -= dt
+    if (pendingThrow.t <= 0) {
+      releaseStone(pendingThrow, store)
+      pendingThrow = null
+    }
+  }
+}
+
+function releaseStone({ dir, inZone }, store) {
+  const fullRun = LAKE.maxZ - LAKE.minZ
+  const reach = inZone ? canalReach(store.skill) : 1
+  // Short canal runs travel slower (and hop lower) so the stone doesn't rocket across a short distance.
+  const speedScale = inZone ? Math.max(LAKE_MIN_SPEED_SCALE, Math.sqrt(Math.min(reach, 1))) : 1
+  const speed = inZone ? LAKE_THROW_SPEED * speedScale : throwSpeed(store.skill)
+  const vy = speed * Math.sin(THROW_UP_ANGLE)
+  const vh = speed * Math.cos(THROW_UP_ANGLE)
+  const hand = player.handPos
+  const position = hand
+    ? new Vector3(hand.x, hand.y, hand.z)
+    : new Vector3(player.position.x + dir.x * 0.4, player.position.y + 1.1, player.position.z + dir.z * 0.4)
+  const stone = {
+    position,
+    velocity: new Vector3(dir.x * vh, vy, dir.z * vh),
+    model: store.equippedStone, // which SKILL_STONES model to draw (ThrownStones.jsx)
+    skips: 0,
+    pool: null,
+    lake: false,
+    lakeRun: inZone, // canal run (see LAKE_THROW_SPEED), cut short by `range` below full reach
+    startZ: position.z,
+    range: Infinity,
+    runLength: fullRun,
+    speedScale,
+  }
+  if (inZone) {
+    stone.range = reach >= 1 ? Infinity : reach * fullRun
+    stone.runLength = Math.min(stone.range, fullRun)
+  }
+  thrownStones.push(stone)
+  // Each throw from an unlocked training pool's pad earns that pool's
+  // labelled skill, the moment the stone leaves the hand.
+  const pad = POOLS.find((p) => p.id === store.currentPoolId)
+  if (pad && !inZone && isPoolUnlocked(pad, store.rebirths)) {
+    const before = store.skill
+    store.addSkill(pad.mult * equippedStoneValue(store.equippedStone))
+    spawnActionPopup(useGameStore.getState().skill - before)
+  }
+  // Cinematic camera follow only kicks in for a throw made from the
+  // Throw Zone, and only if nothing is already being tracked.
+  if (inZone && !trackedStone) trackedStone = stone
+  store.throwStone()
+  reloadTimer = RELOAD_TIME
 }
 
 function settle(stone) {
   if (stone.sunk) return
   stone.sunk = true
   const store = useGameStore.getState()
-  if (stone.lake && stone.skips > 0) store.addWins(stone.skips)
-  if (stone.pool && isPoolUnlocked(stone.pool, store.rebirths)) store.addXp(1)
-  if (stone === trackedStone) trackedStone = null
+  if (stone.lake && stone.skips > 0) store.addWins(lakeWinsForDistance(Math.abs(stone.position.z - stone.startZ)))
+  if (stone === trackedStone) {
+    trackedStone = null
+    reloadTimer = CAMERA_RETURN_TIME // the camera is now easing back to the player
+  }
 }
 
 // Integrates every in-flight stone, bounces it off water when the impact is
@@ -127,19 +222,37 @@ export function stepStones(dt) {
       if (water.pool) stone.pool = water.pool
       if (water.lake) stone.lake = true
 
+      const outOfRange = Math.abs(z - stone.startZ) >= stone.range
+      const lakeRun = stone.lakeRun && water.lake && !outOfRange
       const speed = stone.velocity.length()
       const angle = Math.atan2(-stone.velocity.y, Math.hypot(stone.velocity.x, stone.velocity.z))
-      const canSkip = angle < MAX_SHALLOW_ANGLE && speed > MIN_BOUNCE_SPEED && stone.skips < MAX_SKIPS
+      const canSkip = lakeRun || (!(stone.lakeRun && water.lake) && angle < MAX_SHALLOW_ANGLE && speed > MIN_BOUNCE_SPEED && stone.skips < MAX_SKIPS)
+
+      // Sinking stones make a big splash, skips a lighter one.
+      const splashPower = canSkip ? 0.6 : 1.4
+      spawnSplash(x, water.y, z, splashPower)
+      playWaterSplash(splashPower)
 
       if (canSkip) {
         stone.position.y = water.y
-        stone.velocity.y = -stone.velocity.y * BOUNCE_DAMPING
-        stone.velocity.x *= DRAG_PER_BOUNCE
-        stone.velocity.z *= DRAG_PER_BOUNCE
+        if (lakeRun) {
+          // Speed and hop height fade together with the distance covered.
+          const fade = lakeFade(Math.abs(z - stone.startZ), stone.runLength)
+          stone.velocity.y = LAKE_HOP_VY * stone.speedScale * fade
+          const vh = Math.hypot(stone.velocity.x, stone.velocity.z)
+          if (vh > 0) {
+            const k = (LAKE_THROW_SPEED * stone.speedScale * fade) / vh
+            stone.velocity.x *= k
+            stone.velocity.z *= k
+          }
+        } else {
+          stone.velocity.y = -stone.velocity.y * BOUNCE_DAMPING
+          stone.velocity.x *= DRAG_PER_BOUNCE
+          stone.velocity.z *= DRAG_PER_BOUNCE
+        }
         stone.skips += 1
         const store = useGameStore.getState()
         store.registerSkip(stone.skips)
-        if (water.pool && isPoolUnlocked(water.pool, store.rebirths)) store.addSkill(water.pool.mult)
       } else {
         settle(stone)
       }

@@ -73,6 +73,8 @@ export function step(dt) {
     }
   }
   if (player.atPad) player.facing = PAD_FACING
+  // Planted mid-throw (stoneActions): the stride is part of the animation.
+  if (player.throwing) wishX = wishZ = 0
 
   approach2D(player.velocity, wishX * speed, wishZ * speed, ACCEL * dt)
 

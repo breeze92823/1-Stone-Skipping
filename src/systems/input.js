@@ -14,6 +14,7 @@ export const inputState = {
 }
 
 const held = new Set()
+const pressed = new Set() // edge-triggered key presses awaiting consumeKeyPress
 let orbiting = false
 let installed = false
 
@@ -36,6 +37,7 @@ export function setMoveLocked(locked) {
 function onKeyDown(e) {
   if (e.repeat) return
   held.add(e.code)
+  pressed.add(e.code)
   if (e.code === 'Space') {
     if (inputState.moveLocked) setMoveLocked(false) // this press only unlocks; no jump
     else inputState.jump = true
@@ -80,6 +82,17 @@ function onBlur() {
   orbiting = false
   inputState.jump = false
   recomputeMove()
+}
+
+// True once per physical press of `code`.
+export function consumeKeyPress(code) {
+  return pressed.delete(code)
+}
+
+// Continuous "is E physically held" signal for systems/interact.js's hold gate.
+export const INTERACT_KEY = 'KeyE'
+export function isInteractKeyDown() {
+  return held.has(INTERACT_KEY)
 }
 
 export function install() {

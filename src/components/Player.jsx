@@ -7,11 +7,12 @@ import { DEV_MODE } from '../data/bloxity.js'
 import { applyProportions, attachEquippedAccessories } from '../systems/avatarLoader.js'
 import { buildDefaultCharacter, loadBaseCharacter, HELD_ITEM_OFFSET } from '../systems/defaultCharacter.js'
 import { useGameStore } from '../store/useGameStore.js'
-import { makeGait, updateGait, disposeGait, updateThrow, throwHoldsStone } from '../systems/avatarAnim.js'
+import { makeGait, updateGait, disposeGait, updateThrow, triggerThrow, throwHoldsStone } from '../systems/avatarAnim.js'
 import { inputState } from '../systems/input.js'
 
 const _up = new Vector3(0, 1, 0)
 const _targetQuat = new Quaternion()
+const _handPos = new Vector3()
 const TURN_RATE = 0.001 // base of 1 - TURN_RATE^delta; smaller = snappier turn
 
 function makeHeldStoneMesh() {
@@ -76,6 +77,7 @@ export default function Player() {
   const avatar = useBloxityAvatar()
   const gaitRef = useRef(null)
   const heldStoneRef = useRef(null)
+  const throwCountRef = useRef(player.throwCount)
   const stoneReady = useGameStore((s) => s.stoneReady)
 
   // Rebuilt per loaded avatar — the gait's cached bind-pose quaternions
@@ -110,11 +112,22 @@ export default function Player() {
 
     const gait = gaitRef.current
     if (gait) {
+      if (player.throwCount !== throwCountRef.current) {
+        throwCountRef.current = player.throwCount
+        triggerThrow(gait)
+      }
       const speed01 = Math.hypot(player.velocity.x, player.velocity.z) / player.moveSpeed
       updateGait(gait, Math.min(delta, 0.1), speed01, player.grounded)
-      updateThrow(gait, Math.min(delta, 0.1), inputState.moveLocked && player.atPad)
+      updateThrow(gait, Math.min(delta, 0.1), inputState.moveLocked && player.atPad && player.padUnlocked)
     }
-    if (heldStoneRef.current) heldStoneRef.current.visible = stoneReady && throwHoldsStone(gait)
+    const held = heldStoneRef.current
+    if (held) {
+      held.visible = stoneReady && throwHoldsStone(gait)
+      // stoneActions launches the thrown stone from here at release.
+      player.handPos = held.getWorldPosition(_handPos)
+    } else {
+      player.handPos = null
+    }
   })
 
   return (

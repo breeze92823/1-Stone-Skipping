@@ -21,13 +21,33 @@ export const PATH_TOP = 0.12 // gray lego paths sit slightly proud of the grass
 // throw zone's bank, and past it is open lake.
 export const BOUNDS = { minX: -46, maxX: 42, minZ: -50, maxZ: 20.5 }
 
-// The lake is a long straight canal running south from the throw zone to
-// Palm Beach at the far end. It's narrower than the throw zone strip and
-// centred on the chevron road; low terraced grass banks line both sides,
-// each tier LAKE_BANK.tierWidth wide and stepping up away from the water.
-export const LAKE = { minX: -22, maxX: 34, minZ: 20.5, maxZ: 250 }
+// The lake is a long straight canal running south from the throw zone to a
+// sandy beach at the far end. It's narrower than the throw zone strip and
+// centred on the chevron road; low terraced banks line both sides, each
+// tier LAKE_BANK.tierWidth wide and stepping up away from the water.
+export const LAKE = { minX: -22, maxX: 34, minZ: 20.5, maxZ: 4534 }
 export const LAKE_BANK = { tierWidth: 8, tops: [1.2, 3.7, 6.2] }
-export const PALM_BEACH = { depth: 14, top: 0.3, label: 'Palm Beach' } // sandy strip across the canal's far end
+export const LAKE_END = { depth: 14, top: 0.3 } // sandy strip across the canal's far end
+
+// Themed stretches of the canal, north to south. Each zone starts at its
+// startZ, where its name sign hangs over the water, and runs to the next
+// zone's startZ (the last runs to the end beach). The first zone starts at
+// the throw zone.
+// `water` / `shallows` tint that stretch of canal.
+export const LAKE_ZONES = [
+  { id: 'palm', label: 'Palm Beach', icon: 'palm', startZ: 200, water: '#14cbe6', shallows: '#a6f4ff' },
+  { id: 'desert', label: 'Cactus Desert', icon: 'cactus', startZ: 586, water: '#14cbe6', shallows: '#a6f4ff' },
+  { id: 'autumn', label: 'Autumn Woods', icon: 'maple', startZ: 952, water: '#eab84e', shallows: '#ffe3a3' },
+  { id: 'frost', label: 'Frost Lake', icon: 'snowflake', startZ: 1320, water: '#8fdcf2', shallows: '#e4fbff' },
+  { id: 'marsh', label: 'Mushroom Marsh', icon: 'mushroom', startZ: 1770, water: '#4fcfb6', shallows: '#bdf7e0' },
+  { id: 'candy', label: 'Candy Banks', icon: 'lollipop', startZ: 2220, water: '#ff9ccb', shallows: '#ffdcec' },
+  { id: 'crystal', label: 'Crystal Valley', icon: 'gem', startZ: 2760, water: '#a985f2', shallows: '#e0d0ff' },
+  { id: 'ember', label: 'Ember River', icon: 'flame', startZ: 3270, water: '#ff8a2e', shallows: '#ffd28a' },
+  { id: 'starfall', label: 'Starfall Shores', icon: 'sparkle', startZ: 3900, water: '#5a6ce0', shallows: '#bcc6ff' },
+]
+
+// Giant pirate portal standing on the end beach, facing back up the canal.
+export const LAKE_PORTAL = { scale: 5, zOffset: 5, sub: '100M' } // zOffset: metres past the beach's north edge
 
 export const SPAWN = { x: 6, y: PATH_TOP, z: 1 } // in the spawn section
 export const SPAWN_FACING = Math.PI // face north
@@ -78,11 +98,11 @@ const POOL_W = 6.5
 const FIRST_POOL_Z = 9
 export const POOLS = [
   { id: 'p1', mult: 1, rebirths: 0, len: 11, theme: 'lake' },
-  { id: 'p4', mult: 4, rebirths: 2, len: 14, theme: 'teal' },
-  { id: 'p10', mult: 10, rebirths: 4, len: 17, theme: 'purple' },
-  { id: 'p20', mult: 20, rebirths: 6, len: 19, theme: 'ice' },
-  { id: 'p15', mult: 15, robux: 110, len: 21, theme: 'gold' },
-  { id: 'p50', mult: 50, robux: 255, len: 23, theme: 'neon' },
+  { id: 'p4', mult: 4, rebirths: 3, signRebirths: 2, len: 14, theme: 'teal' },
+  { id: 'p10', mult: 10, rebirths: 5, signRebirths: 4, len: 17, theme: 'purple' },
+  { id: 'p20', mult: 20, rebirths: 7, signRebirths: 6, len: 19, theme: 'ice' },
+  { id: 'p15', mult: 15, rebirths: 12, winCost: 10000, len: 21, theme: 'gold' },
+  { id: 'p50', mult: 50, rebirths: 13, winCost: 20000, len: 23, theme: 'neon' },
 ].map((p, i) => ({ ...p, zc: FIRST_POOL_Z - i * POOL_PITCH, w: POOL_W }))
 
 export function poolRect(p) {
@@ -103,7 +123,7 @@ export function poolInsetRect(p) {
 }
 
 export function isPoolUnlocked(p, rebirths) {
-  return p.robux === undefined && rebirths >= p.rebirths
+  return p.winCost === undefined && rebirths >= p.rebirths
 }
 
 // Where the tutorial arrows lead: the 1x pool's throwing platform.
@@ -113,10 +133,14 @@ export const GUIDE_TARGET = { x: POOL_EAST_X - POOL_RIM - POOL_PLATFORM.length /
 // Rare either side of it, Common and Rainbow at the front corners.
 export const EGGS = [
   { kind: 'common', x: -2, z: -13.2, label: 'COMMON', color: '#e3ecf5', labelColor: '#f2f4f7', wins: '50 Wins' },
-  { kind: 'uncommon', x: 0.8, z: -18, label: 'UNCOMMON', color: '#2fe04c', labelColor: '#3ee356', wins: '500 Wins' },
-  { kind: 'rare', x: 13.2, z: -18, label: 'RARE', color: '#2cc6ff', labelColor: '#4fc8ff', wins: '4K Wins' },
-  { kind: 'rainbow', x: 15.6, z: -13.2, label: 'Rainbow Egg', robux: 30 },
+  { kind: 'uncommon', x: 0.8, z: -18, label: 'UNCOMMON', color: '#2fe04c', labelColor: '#3ee356', wins: '500 Wins', rebirths: 8 },
+  { kind: 'rare', x: 13.2, z: -18, label: 'RARE', color: '#2cc6ff', labelColor: '#4fc8ff', wins: '4K Wins', rebirths: 8 },
+  { kind: 'rainbow', x: 15.6, z: -13.2, label: 'Rainbow Egg', rebirths: 10 },
 ]
+// VITE_SHOW_ADDON=true shows the add-on features (Featured Pet label, Claim Chest, Phoenix Relic,
+// Admin Abuse board, HUD Friend Boost and
+// Boost buttons); anything else hides them.
+export const SHOW_ADDON = import.meta.env.VITE_SHOW_ADDON === 'true'
 export const FEATURED_PET = { x: 7, z: -20.5 }
 export const CLAIM_CHEST = { x: 21.5, z: -7.5 } // on the grass just SE of the egg plaza
 export const ADMIN_BOARD = { x: 1.5, z: -26, rot: 0.15 }
@@ -132,7 +156,7 @@ export const LEADER_BRIDGE = { x0: 5.5, x1: 12.5, z0: -31, z1: -24, top: 0.4 }
 export const LEADERBOARDS = [
   { title: 'Top Level', x: 1.3, z: -38.5, rot: Math.PI / 2, stat: 'level' },
   { title: 'Top Time Played', x: 5.3, z: -45.2, rot: 0, stat: 'time' },
-  { title: 'Top Robux Spent', x: 12.7, z: -45.2, rot: 0, stat: 'robux' },
+  { title: 'Top Skills', x: 12.7, z: -45.2, rot: 0, stat: 'skill' },
   { title: 'Top Wins', x: 16.7, z: -38.5, rot: -Math.PI / 2, stat: 'wins' },
 ]
 export const WATERFALL = { x0: -0.5, x1: 18.5, z: -49.4, bottom: LEADER_MOAT.y, top: 32 }
@@ -156,19 +180,19 @@ const STONE_ROW_Z = [-12.5, -9, -5.5, -2, 1.5]
 const NEAR_ROW_X = 31
 const FAR_ROW_X = 35.5
 export const SKILL_STONES = [
-  { skill: '+1 Skill', wins: '0 Wins', model: 'pebble', unlocked: true },
-  { skill: '+3 Skill', wins: '2 Wins', model: 'scallop', unlocked: true },
-  { skill: '+5 Skill', wins: '10 Wins', model: 'shell' },
-  { skill: '+12 Skill', wins: '40 Wins', model: 'starfish' },
-  { skill: '+30 Skill', wins: '150 Wins', model: 'wood' },
+  { skill: '+1 Skill', wins: '0 Wins', model: 'pebble', value: 1, cost: 0 },
+  { skill: '+3 Skill', wins: '2 Wins', model: 'scallop', value: 3, cost: 2 },
+  { skill: '+5 Skill', wins: '10 Wins', model: 'shell', value: 5, cost: 10 },
+  { skill: '+12 Skill', wins: '40 Wins', model: 'starfish', value: 12, cost: 40 },
+  { skill: '+30 Skill', wins: '150 Wins', model: 'wood', value: 30, cost: 150 },
 ].map((s, i) => ({ ...s, x: NEAR_ROW_X, z: STONE_ROW_Z[i] }))
   .concat(
     [
-      { skill: '+75 Skill', wins: '500 Wins', model: 'arrowhead' },
-      { skill: '+200 Skill', wins: '1.5K Wins', model: 'disc' },
-      { skill: '+500 Skill', wins: '4.5K Wins', model: 'ring' },
-      { skill: '+1.25K Skill', wins: '14K Wins', model: 'obsidian' },
-      { skill: '+3.5K Skill', wins: '40K Wins', model: 'coral' },
+      { skill: '+75 Skill', wins: '500 Wins', model: 'arrowhead', value: 75, cost: 500 },
+      { skill: '+200 Skill', wins: '1.5K Wins', model: 'disc', value: 200, cost: 1500 },
+      { skill: '+500 Skill', wins: '4.5K Wins', model: 'ring', value: 500, cost: 4500 },
+      { skill: '+1.25K Skill', wins: '14K Wins', model: 'obsidian', value: 1250, cost: 14000 },
+      { skill: '+3.5K Skill', wins: '40K Wins', model: 'coral', value: 3500, cost: 40000 },
     ].map((s, i) => ({ ...s, x: FAR_ROW_X, z: STONE_ROW_Z[i], highLabel: true })),
   )
 // On the path directly in front of the +5 stone.
@@ -198,8 +222,8 @@ export const COLLIDERS = [
   ...TREES.map(([x, z]) => [x, z, 0.8]),
   ...EGGS.map((e) => [e.x, e.z, 1.3]),
   [FEATURED_PET.x, FEATURED_PET.z, 1.9],
-  [CLAIM_CHEST.x, CLAIM_CHEST.z, 1.5],
+  ...(SHOW_ADDON ? [[CLAIM_CHEST.x, CLAIM_CHEST.z, 1.5]] : []),
   [PORTAL.x, PORTAL.z, 2.2],
   [HACKED_EGG.x, HACKED_EGG.z, 1.2],
-  [PHOENIX_RELIC.x, PHOENIX_RELIC.z, 1.3],
+  ...(SHOW_ADDON ? [[PHOENIX_RELIC.x, PHOENIX_RELIC.z, 1.3]] : []),
 ]

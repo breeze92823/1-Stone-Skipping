@@ -166,29 +166,61 @@ export function updateGait(gait, dt, speed01, grounded = true) {
   gait.built.root.position.y = Math.abs(Math.sin(gait.phase)) * GAIT.bob * gait.amp
 }
 
-// --- Stone-skip throw loop ------------------------------------------------
-// Played while the player is parked on a pool's throwing pad: a sidearm
-// skim with the right arm — hold the stone out front-right, wind back with a
-// torso twist, whip it flat across the body, follow through, reset. Poses
-// are parent-space rotations layered over the bind pose (same frame as the
-// walk cycle: X flexes, Y twists/swings horizontally, Z raises sideways).
-//   ArmR: `raise` lifts the arm out to the side (character's right is -X),
+// --- Stone-skip throw -----------------------------------------------------
+// A real skim, right-handed: stand side-on to the water with knees soft,
+// point the lead (left) arm at the target, draw the stone back low behind
+// the hip while the chest coils away, step into it with the lead foot, then
+// whip the arm through flat at hip height with the throwing shoulder dipped
+// (keeps the stone parallel to the water), release just in front of the
+// hip, and let the arm carry across the body while the back foot drags
+// forward. The head counter-rotates so the eyes stay on the water.
+//
+// Loops on a pool's throwing pad; plays once per THROW press (see
+// triggerThrow). Poses are parent-space rotations layered over the bind pose
+// (same frame as the walk cycle: X flexes, Y twists/swings, Z raises/rolls).
+//   armR: `raise` lifts the arm out to the side (character's right is -X),
 //         `swing` then sweeps it horizontally (+ forward, - behind).
-//   ArmL: same fields, mirrored (swing - is forward for the left arm).
-//   spine: `twist` (+ turns the chest left/toward the throw), `lean` (+ fwd).
-// `stone` says whether the stone is still in hand at that key.
+//   armL: same fields, mirrored (swing - is forward for the left arm).
+//   Spine1 (hips->torso): `twist` (+ turns left/toward the throw), `lean`
+//         (+ forward), `roll` (+ dips the right, throwing shoulder).
+//   Spine2 (chest): `chest` extra twist — lags the hips on the way in and
+//         snaps past them at release, the whip.
+//   legs: `legL`/`legR` flex (- forward), `spread` splays both outward.
+// The spine roll carries the arms with it, so armR.raise is set that much
+// higher (and armL.raise lower) to keep the hands where they read right.
+// `stone` is whether the stone is in hand from that key until the next.
 const THROW_PERIOD = 1.6 // s per full throw
 const THROW_KEYS = [
-  { t: 0.0, armR: { raise: 0.9, swing: 0.5 }, armL: { raise: 0.35, swing: 0 }, twist: 0, lean: 0.05, stone: true },
-  { t: 0.22, armR: { raise: 0.9, swing: 0.5 }, armL: { raise: 0.35, swing: 0 }, twist: 0, lean: 0.05, stone: true },
-  { t: 0.5, armR: { raise: 1.0, swing: -1.0 }, armL: { raise: 0.5, swing: -0.6 }, twist: -0.5, lean: 0.12, stone: true },
-  { t: 0.62, armR: { raise: 1.25, swing: 0.9 }, armL: { raise: 0.45, swing: 0.35 }, twist: 0.3, lean: 0.25, stone: false },
-  { t: 0.8, armR: { raise: 0.8, swing: 1.8 }, armL: { raise: 0.35, swing: 0.5 }, twist: 0.55, lean: 0.2, stone: false },
-  { t: 1.0, armR: { raise: 0.9, swing: 0.5 }, armL: { raise: 0.35, swing: 0 }, twist: 0, lean: 0.05, stone: true },
+  // set: side-on, stone cupped low by the right hip
+  { t: 0.0, armR: { raise: 0.4, swing: 0.3 }, armL: { raise: 0.25, swing: -0.3 }, twist: -0.45, chest: 0, lean: 0.15, roll: 0.05, legL: -0.15, legR: 0.2, spread: 0.12, stone: true },
+  // aim: lead arm points out at the water
+  { t: 0.2, armR: { raise: 0.45, swing: 0.1 }, armL: { raise: 0.75, swing: -1.0 }, twist: -0.5, chest: -0.05, lean: 0.2, roll: 0.1, legL: -0.15, legR: 0.22, spread: 0.13, stone: true },
+  // wind-up: stone drawn back low behind the hip, chest coiled, weight back
+  { t: 0.45, armR: { raise: 0.85, swing: -1.35 }, armL: { raise: 0.7, swing: -1.1 }, twist: -0.75, chest: -0.3, lean: 0.3, roll: 0.25, legL: -0.1, legR: 0.3, spread: 0.15, stone: true },
+  // stride: lead foot plants, hips open first while the chest lags
+  { t: 0.56, armR: { raise: 0.9, swing: -0.7 }, armL: { raise: 0.3, swing: -0.3 }, twist: -0.3, chest: -0.35, lean: 0.38, roll: 0.35, legL: -0.5, legR: 0.35, spread: 0.18, stone: true },
+  // release: arm flat at hip height just in front, shoulder dipped, lowest point
+  { t: 0.63, armR: { raise: 1.0, swing: 0.35 }, armL: { raise: 0.1, swing: 0.45 }, twist: 0.2, chest: 0.15, lean: 0.42, roll: 0.4, legL: -0.5, legR: 0.35, spread: 0.18, stone: false },
+  // follow-through: arm carries across the body, back foot drags forward
+  { t: 0.78, armR: { raise: 0.9, swing: 1.7 }, armL: { raise: 0.25, swing: 0.6 }, twist: 0.6, chest: 0.2, lean: 0.35, roll: 0.15, legL: -0.45, legR: 0.1, spread: 0.15, stone: false },
+  // recover to set
+  { t: 1.0, armR: { raise: 0.4, swing: 0.3 }, armL: { raise: 0.25, swing: -0.3 }, twist: -0.45, chest: 0, lean: 0.15, roll: 0.05, legL: -0.15, legR: 0.2, spread: 0.12, stone: true },
 ]
-const THROW_STANCE = { legL: -0.25, legR: 0.2 } // left foot forward, right back
+const THROW_FIELDS = ['twist', 'chest', 'lean', 'roll', 'legL', 'legR', 'spread']
+const RELEASE_U = THROW_KEYS.find((k) => !k.stone).t
+// A THROW press skips the set/aim hold and starts heading into the wind-up,
+// so the stone leaves the hand promptly.
+const ONESHOT_START_U = 0.25
+export const THROW_RELEASE_DELAY = (RELEASE_U - ONESHOT_START_U) * THROW_PERIOD // s from press to release
+// A one-shot stops partway through the recovery (arm already coming back
+// down) and eases to the bind pose from there, rather than settling into the
+// crouched "set" stance the pad loop restarts from.
+const ONESHOT_END_U = 0.9
+export const THROW_ONESHOT_TIME = (ONESHOT_END_U - ONESHOT_START_U) * THROW_PERIOD // s until control returns
+const NECK_COUNTER = 0.85 // share of the torso's yaw the head undoes to keep eyes on the water
+const LEG_RIG_LEN = 2.4 // hip pivot to sole, rig units (see defaultCharacter.js)
 const THROW_BLEND_HZ = 10
-const THROW_BONES = ['ArmR1', 'ArmL1', 'Spine1', 'LegL1', 'LegR1']
+const THROW_BONES = ['ArmR1', 'ArmL1', 'Spine1', 'Spine2', 'Neck1', 'LegL1', 'LegR1']
 
 const _qa = new THREE.Quaternion()
 const _qb = new THREE.Quaternion()
@@ -204,21 +236,21 @@ function samplePose(u) {
   while (i < THROW_KEYS.length - 2 && u > THROW_KEYS[i + 1].t) i++
   const a = THROW_KEYS[i]
   const b = THROW_KEYS[i + 1]
-  const raw = (u - a.t) / (b.t - a.t)
+  const raw = Math.min(Math.max((u - a.t) / (b.t - a.t), 0), 1)
   const k = raw * raw * (3 - 2 * raw) // smoothstep
-  return {
+  const pose = {
     armR: { raise: lerp(a.armR.raise, b.armR.raise, k), swing: lerp(a.armR.swing, b.armR.swing, k) },
     armL: { raise: lerp(a.armL.raise, b.armL.raise, k), swing: lerp(a.armL.swing, b.armL.swing, k) },
-    twist: lerp(a.twist, b.twist, k),
-    lean: lerp(a.lean, b.lean, k),
-    stone: k < 0.5 ? a.stone : b.stone,
+    stone: u >= b.t ? b.stone : a.stone,
   }
+  for (const f of THROW_FIELDS) pose[f] = lerp(a[f], b[f], k)
+  return pose
 }
 
 function ensureThrowRig(gait) {
   if (gait.throwRig) return gait.throwRig
   const nodes = gait.built.nodes || {}
-  const rig = { w: 0, t: 0, stone: true, bones: {} }
+  const rig = { w: 0, t: 0, stone: true, shot: false, bones: {} }
   for (const name of THROW_BONES) {
     const bone = nodes[name]
     if (bone) rig.bones[name] = { bone, bind: bone.quaternion.clone() }
@@ -236,25 +268,51 @@ function applyLayer(entry, q, w) {
   entry.bone.quaternion.slerp(_target, w)
 }
 
+// Play one throw from the wind-up. The caller releases the real stone
+// THROW_RELEASE_DELAY seconds later, in sync with the hand opening.
+export function triggerThrow(gait) {
+  if (!gait) return
+  const rig = ensureThrowRig(gait)
+  rig.t = ONESHOT_START_U
+  rig.shot = true
+}
+
 // Call after updateGait each frame. `active` is true while the player is
-// locked on a throwing pad; the loop eases in and out around it.
+// locked on a throwing pad (loops); a triggerThrow one-shot also drives it.
+// The pose eases in and out around both.
 export function updateThrow(gait, dt, active) {
   if (!gait || dt <= 0) return
   const rig = ensureThrowRig(gait)
+  const root = gait.built.root
+  const on = active || rig.shot
   const wasOn = rig.w > 0
-  rig.w += ((active ? 1 : 0) - rig.w) * (1 - Math.exp(-THROW_BLEND_HZ * dt))
-  if (!active && rig.w < 0.01) {
+  rig.w += ((on ? 1 : 0) - rig.w) * (1 - Math.exp(-THROW_BLEND_HZ * dt))
+  if (!on && rig.w < 0.01) {
     rig.w = 0
     rig.t = 0
     rig.stone = true
-    // The mixer path may not rewrite these bones, so hand them back to bind.
-    if (wasOn && gait.mixer) for (const e of Object.values(rig.bones)) e.bone.quaternion.copy(e.bind)
+    // Fully done: put every throw bone back at bind (the walk cycle doesn't
+    // touch Spine2/Neck1, and the mixer path may not rewrite any of them).
+    if (wasOn) {
+      for (const e of Object.values(rig.bones)) e.bone.quaternion.copy(e.bind)
+      if (gait.mixer) root.position.y = 0
+    }
     return
   }
 
-  rig.t = (rig.t + dt / THROW_PERIOD) % 1
+  if (on) {
+    rig.t += dt / THROW_PERIOD
+    if (rig.shot && !active && rig.t >= ONESHOT_END_U) {
+      rig.t = ONESHOT_END_U // hold this pose while the weight fades to bind
+      rig.shot = false
+    } else if (rig.t >= 1) {
+      rig.t %= 1
+      rig.shot = false
+    }
+  }
   const p = samplePose(rig.t)
-  rig.stone = p.stone
+  // Once a one-shot ends the next stone is back in hand while it eases out.
+  rig.stone = on ? p.stone : true
   const w = rig.w
   const b = rig.bones
 
@@ -268,14 +326,38 @@ export function updateThrow(gait, dt, active) {
   _qb.setFromAxisAngle(AXES.y, p.armL.swing)
   applyLayer(b.ArmL1, _qb.multiply(_qa), w)
 
+  // Hips -> torso: twist, then lean forward and dip the throwing shoulder.
   _qa.setFromAxisAngle(AXES.x, p.lean)
+  _qb.setFromAxisAngle(AXES.z, p.roll)
+  _qa.premultiply(_qb)
   _qb.setFromAxisAngle(AXES.y, p.twist)
   applyLayer(b.Spine1, _qb.multiply(_qa), w)
 
-  _qa.setFromAxisAngle(AXES.x, THROW_STANCE.legL)
-  applyLayer(b.LegL1, _qa, w)
-  _qa.setFromAxisAngle(AXES.x, THROW_STANCE.legR)
-  applyLayer(b.LegR1, _qa, w)
+  _qa.setFromAxisAngle(AXES.y, p.chest)
+  applyLayer(b.Spine2, _qa, w)
+
+  // Head undoes most of the torso's yaw and some of its roll and pitch.
+  _qa.setFromAxisAngle(AXES.x, -p.lean * 0.5)
+  _qb.setFromAxisAngle(AXES.z, -p.roll * 0.7)
+  _qa.premultiply(_qb)
+  _qb.setFromAxisAngle(AXES.y, -(p.twist + p.chest) * NECK_COUNTER)
+  applyLayer(b.Neck1, _qb.multiply(_qa), w)
+
+  // Legs: stride (flex) inside a slight outward splay (+Z moves the left
+  // foot out toward +X, -Z the right foot toward -X).
+  _qa.setFromAxisAngle(AXES.x, p.legL)
+  _qb.setFromAxisAngle(AXES.z, p.spread)
+  applyLayer(b.LegL1, _qb.multiply(_qa), w)
+  _qa.setFromAxisAngle(AXES.x, p.legR)
+  _qb.setFromAxisAngle(AXES.z, -p.spread)
+  applyLayer(b.LegR1, _qb.multiply(_qa), w)
+
+  // Straight legs can't bend at the knee, so lower the hips by exactly what
+  // the stance costs — the less-angled leg keeps its sole on the ground.
+  // The fallback walk sets root Y each frame; the mixer path doesn't.
+  const legLen = LEG_RIG_LEN * root.scale.y
+  const drop = legLen * (1 - Math.cos(p.spread) * Math.cos(Math.min(Math.abs(p.legL), Math.abs(p.legR))))
+  root.position.y = (gait.mixer ? 0 : root.position.y) - drop * w
 }
 
 // Whether the throw loop currently has the stone in hand (true when idle).
