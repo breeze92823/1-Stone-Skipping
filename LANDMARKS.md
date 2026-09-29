@@ -23,7 +23,13 @@ default camera faces **north**, toward the waterfall. Positions are
         └══════════════ THROW ZONE (z = 17–20.5) ══════════════┘
           Lake Banks ▒▒│    The Lake (canal)    │▒▒ Lake Banks
                        │           ↓ south      │
-                       │   ~230 m to Palm Beach │
+                       │ Palm Beach sign ~250 m │
+                       │ Cactus Desert ~565 m   │
+                       │ Autumn Woods  ~931 m   │
+                       │ Frost Lake   ~1330 m   │
+                       │ Mushroom Marsh ~1782 m │
+                       │ Candy Banks   ~2239 m  │
+                       │ Crystal Valley ~2768 m │
 ```
 
 ---
@@ -158,11 +164,18 @@ All the stones are listed in `SKILL_STONES` and drawn by
 | **World 2 Portal** | Octagonal pirate portal with a skull and lanterns, blue swirl, green dashed pad; stands on the grass east of the Chevron Road, faces spawn | (15.5, 9.5) | `PORTAL` | [Portal.jsx](src/components/Portal.jsx) (`WorldPortal`) |
 | **Hacked Admin Egg** | Black egg with green cracks, floating shards, R$100; on the grass east of the Chevron Road, just north of the throw zone | (12.5, 14) | `HACKED_EGG` | Portal.jsx (`HackedAdminEgg`) |
 | **Throw Zone** | Yellow strip at the lake's edge, running the full width just south of the 1x Pool. "THROW ZONE" is painted on it, centred on the Chevron Road and reading correctly as you walk up to it | x -44…40, z 17…20.5 | `THROW_ZONE` | Ground.jsx (`ThrowZone`) |
-| **The Lake** | A long, straight canal of flat, bright cyan water running south from the throw zone to Palm Beach. It's narrower than the throw zone strip and centred on the Chevron Road. Each skip here earns 1 win; walking in respawns you at Spawn | x -22…34, z 20.5…236 | `LAKE`, `WATER_Y` | [Water.jsx](src/components/Water.jsx) |
+| **The Lake** | A long, straight canal of flat, bright cyan water (golden in Autumn Woods, icy pale blue in Frost Lake, teal-green in Mushroom Marsh, pink in Candy Banks, violet in Crystal Valley) running south from the throw zone through Palm Beach, Cactus Desert, Autumn Woods, Frost Lake, Mushroom Marsh, Candy Banks and Crystal Valley to the End Beach. It's narrower than the throw zone strip and centred on the Chevron Road. Each skip here earns 1 win; walking in respawns you at Spawn | x -22…34, z 20.5…2760 | `LAKE`, `WATER_Y` | [Water.jsx](src/components/Water.jsx) |
 | **Lake Shallows** | Pale cyan strip along both edges of the canal where the water meets the banks | canal edges | n/a | [LakeBanks.jsx](src/components/LakeBanks.jsx) |
-| **Lake Banks** | Low terraced banks lining both sides of the canal: 3 tiers (1.2 m, 3.7 m, 6.2 m high), each 8 m wide, with brown checkered faces and grass-checker tops. They start at the throw zone and run past the far end | either side of the canal | `LAKE_BANK` | LakeBanks.jsx |
-| **Bank Scatter** | Gray rocks, green bushes and grass tufts along the bank tops, with palm trees near the far end | on the banks | `buildBankDecor()` | LakeBanks.jsx |
-| **Palm Beach** | Sandy strip across the canal's far end with palm trees, a large "🌴 Palm Beach 🌴" sign, and a pale blue light wall rising behind it. It's the goal at the end of a long throw | x -22…34, z 236…250 | `PALM_BEACH` | LakeBanks.jsx |
+| **Lake Banks** | Low terraced banks lining both sides of the canal: 3 tiers (1.2 m, 3.7 m, 6.2 m high), each 8 m wide. Grass tops with brown faces in Palm Beach, sand-checker in Cactus Desert, orange-checker in Autumn Woods, snow-white and ice-blue in Frost Lake, dark green checker in Mushroom Marsh, pink checker in Candy Banks, purple checker in Crystal Valley. They start at the throw zone and run past the far end | either side of the canal | `LAKE_BANK` | LakeBanks.jsx |
+| **Bank Scatter** | Palm Beach: gray rocks, green bushes and grass tufts, with palm trees near its sign. Cactus Desert: cacti, sandstone pillars and sandy rocks. Autumn Woods: orange/yellow/red autumn trees, pumpkins, leaf piles and rocks. Frost Lake: snow-covered pines, ice crystals and snow mounds. Mushroom Marsh: giant red and purple mushrooms, reeds and bushes. Candy Banks: lollipops, layer cakes, candy canes and gumdrops. Crystal Valley: glowing crystal clusters, geodes, rune stones and rocks | on the banks | `buildBankDecor()` | LakeBanks.jsx |
+| **Palm Beach** | First lake zone: grass banks from the throw zone to its "🌴 Palm Beach 🌴" sign hanging over the water | z 20.5…270, sign at 272 | `LAKE_ZONES[0]` | LakeBanks.jsx (`ZONE_THEMES.palm`) |
+| **Cactus Desert** | Second lake zone: orange sand-checker banks with cacti and sandstone pillars, ending at its "🌵 Cactus Desert 🌵" sign over the water | z 270…586, sign at 588 | `LAKE_ZONES[1]` | LakeBanks.jsx (`ZONE_THEMES.desert`, `Cactus`, `Pillar`) |
+| **Autumn Woods** | Third lake zone: golden water and shallows, orange-checker banks with autumn trees and pumpkins, ending at its "🍁 Autumn Woods 🍁" sign over the water | z 586…952, sign at 954 | `LAKE_ZONES[2]` | LakeBanks.jsx (`ZONE_THEMES.autumn`, `AutumnTree`, `Pumpkin`); water colour in Water.jsx |
+| **Frost Lake** | Fourth lake zone: icy pale-blue water and shallows, snow-white banks with snow pines and ice crystals, ending at its "❄ Frost Lake ❄" sign over the water | z 952…1320, sign at 1322 | `LAKE_ZONES[3]` | LakeBanks.jsx (`ZONE_THEMES.frost`, `SnowPine`, `IceCrystal`) |
+| **Mushroom Marsh** | Fifth lake zone: teal-green water, green checker banks with giant spotted mushrooms and reeds, ending at its "🍄 Mushroom Marsh 🍄" sign over the water | z 1320…1770, sign at 1772 | `LAKE_ZONES[4]` | LakeBanks.jsx (`ZONE_THEMES.marsh`, `Mushroom`, `Reeds`) |
+| **Candy Banks** | Sixth lake zone: pink water, pink checker banks with lollipops, layer cakes, candy canes and gumdrops, ending at its "Candy Banks" sign (lollipop icons) over the water | z 1770…2220, sign at 2222 | `LAKE_ZONES[5]` | LakeBanks.jsx (`ZONE_THEMES.candy`, `Lollipop`, `CandyCane`, `Cake`) |
+| **Crystal Valley** | Seventh lake zone: violet water, purple checker banks with glowing crystal clusters, geodes and rune stones, ending at its "Crystal Valley" sign (gem icons) over the End Beach | z 2220…2760, sign at 2762 | `LAKE_ZONES[6]` | LakeBanks.jsx (`ZONE_THEMES.crystal`, `Crystal`, `Geode`, `RuneStone`) |
+| **End Beach** | Sandy strip across the canal's far end, lined with the last zone's props (crystal clusters), with a pale blue light wall rising behind it. It's the goal at the end of a long throw | x -22…34, z 2760…2774 | `LAKE_END` | LakeBanks.jsx |
 
 ## Surroundings & scatter
 
@@ -203,6 +216,8 @@ All HUD elements are in [Hud.jsx](src/components/Hud.jsx) and styled in
   courtyard, the moat), its floor updates automatically, because
   terrainHeight.js reads the same world.js data.
 - **Collision:** `COLLIDERS` in world.js, one circle per solid prop.
+
+To add another lake zone: append to `LAKE_ZONES` (with its `water`/`shallows` colours), give the previous last zone a fixed `endZ`, raise `LAKE.maxZ`, and add a matching entry to `ZONE_THEMES` in LakeBanks.jsx.
 
 ## Asking for changes
 

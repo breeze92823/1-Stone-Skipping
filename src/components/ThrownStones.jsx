@@ -38,7 +38,8 @@ export default function ThrownStones() {
         <group
           key={i}
           ref={(el) => {
-            slots.current[i] = { group: el, models: slots.current[i]?.models ?? {} }
+            const slot = (slots.current[i] ??= { group: null, models: {} })
+            slot.group = el
           }}
           scale={STONE_SCALE}
           visible={false}
@@ -49,7 +50,9 @@ export default function ThrownStones() {
               position={[0, -0.16, 0]} // models sit on y=0; centre them on the stone's position
               visible={false}
               ref={(el) => {
-                if (el) slots.current[i].models[s.model] = el
+                // child refs attach before the parent's, so create the slot here if needed
+                const slot = (slots.current[i] ??= { group: null, models: {} })
+                if (el) slot.models[s.model] = el
               }}
             >
               <StoneModel model={s.model} />

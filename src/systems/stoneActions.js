@@ -5,7 +5,7 @@ import { spawnActionPopup } from './actionPopups.js'
 import { terrainHeightAt, waterAt, isInsideCliffs } from './terrainHeight.js'
 import { useGameStore } from '../store/useGameStore.js'
 import { THROW_ONESHOT_TIME, THROW_RELEASE_DELAY } from './avatarAnim.js'
-import { isPoolUnlocked, isInThrowZone, LAKE, PALM_BEACH, POOLS, poolInsetRect, SKILL_STONES, WATER_Y } from '../data/world.js'
+import { isPoolUnlocked, isInThrowZone, LAKE, LAKE_END, POOLS, poolInsetRect, SKILL_STONES, WATER_Y } from '../data/world.js'
 
 // The player's core action: throw the stone in hand and let it skip across
 // whatever water it lands on. Each throw from an unlocked training
@@ -38,14 +38,14 @@ const MAX_SHALLOW_ANGLE = 0.55 // rad (~31deg); steeper impacts sink instead of 
 const MAX_SKIPS = 12
 const RELOAD_TIME = 0.45 // s before the next stone is in hand
 
-// Throws from the Throw Zone always skip the whole canal and land on Palm
-// Beach: aimed at the beach, constant horizontal speed, and every lake skip
+// Throws from the Throw Zone always skip the whole canal and land on the
+// end beach: aimed at the beach, constant horizontal speed, and every lake skip
 // rebounds with the same vertical speed (no damping, drag or skip cap).
-// Hop length = speed * 2 * LAKE_HOP_VY / -GRAVITY (~30 m), so ~7 skips.
-const LAKE_THROW_SPEED = 40 // m/s horizontal, ~5.5 s to cross the canal
+// Hop length = speed * 2 * LAKE_HOP_VY / -GRAVITY (~30 m), so ~91 skips.
+const LAKE_THROW_SPEED = 40 // m/s horizontal, ~68 s to cross the canal
 const LAKE_HOP_VY = 6 // m/s up after each lake skip; peaks ~1.1 m, clears the beach lip
 const LAKE_AIM_MARGIN = 3 // m kept off the canal's side banks when aiming
-const BEACH_AIM_Z = LAKE.maxZ - PALM_BEACH.depth / 2
+const BEACH_AIM_Z = LAKE.maxZ - LAKE_END.depth / 2
 
 const _dir = new Vector3()
 let reloadTimer = 0
@@ -104,7 +104,7 @@ export function stepPickupAndThrow(camera, dt) {
       if (autoThrow) {
         _dir.set(-1, 0, 0) // pads face west, toward the water
       } else if (nowInZone) {
-        // Aim down the canal at Palm Beach, staying clear of the side banks.
+        // Aim down the canal at the end beach, staying clear of the side banks.
         const aimX = Math.min(Math.max(player.position.x, LAKE.minX + LAKE_AIM_MARGIN), LAKE.maxX - LAKE_AIM_MARGIN)
         _dir.set(aimX - player.position.x, 0, BEACH_AIM_Z - player.position.z)
       } else {

@@ -3,7 +3,7 @@ import {
   GROUND_Y,
   LAKE,
   LAKE_BANK,
-  PALM_BEACH,
+  LAKE_END,
   LEADER_BRIDGE,
   LEADER_COURT,
   LEADER_MOAT,
@@ -52,7 +52,7 @@ function inside(r, x, z) {
   return x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1
 }
 
-const BEACH_Z = LAKE.maxZ - PALM_BEACH.depth
+const BEACH_Z = LAKE.maxZ - LAKE_END.depth
 
 // Height of the terraced bank beside the canal: the tier you're on depends
 // on how far out from the water's edge you are.
@@ -68,7 +68,7 @@ function lakeBankHeight(x) {
 export function terrainHeightAt(x, z) {
   if (z > BOUNDS.maxZ) {
     if (x < LAKE.minX || x > LAKE.maxX) return lakeBankHeight(x)
-    return z >= BEACH_Z ? PALM_BEACH.top : -Infinity
+    return z >= BEACH_Z ? LAKE_END.top : -Infinity
   }
   let h = GROUND_Y
   for (const s of SOLIDS) if (inside(s, x, z)) h = s.top
