@@ -41,8 +41,8 @@ jobs:
             exit 1
           fi
           case "${URL}" in
-            wss://*|ws://*) ;;
-            *) echo "::error::${NAME} must start with wss:// (got '${URL}')."; exit 1 ;;
+            wss://*|ws://*|https://*|http://*) ;;
+            *) echo "::error::${NAME} must start with wss:// or https:// (got '${URL}')."; exit 1 ;;
           esac
         env:
           SERVER_URL_DEV: ${{ vars.SERVER_URL_DEV || secrets.SERVER_URL_DEV }}
