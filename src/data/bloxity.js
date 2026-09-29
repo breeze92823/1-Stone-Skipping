@@ -38,6 +38,26 @@ export const SETTINGS = {
 // (player.dims.height is 1.8m).
 export const RIG_HEIGHT = 6.4
 
+// Bind-pose values of the rig nodes the SDK proportions drive.
+export const RIG = {
+  armOffsetX: 2, // ArmL_Offset.x, mirrored for ArmR_Offset
+  legOffsetX: 0.6, // LegL_Offset.x, mirrored
+  neckOffsetY: 0.6, // Neck_Offset.y
+}
+
+// getProportions() ranges, straight from the SDK spec. Values arrive from a
+// remote portal (and, for other players, over the network), so everything is
+// clamped before it reaches the scene graph.
+export const PROPORTIONS = {
+  height: { def: 1, min: 0.5, max: 1.6 },
+  shoulderWidth: { def: 1, min: 0.5, max: 1.5 },
+  armLength: { def: 1, min: 0.05, max: 3 },
+  legOffsetX: { def: 1, min: -0.7, max: 5 },
+  torsoScaleX: { def: 1, min: 0.3, max: 2 },
+  neckHeight: { def: 1, min: 0.94, max: 1.2 },
+  headScale: { def: 1, min: 0.3, max: 2.6 },
+}
+
 // --- Locomotion: the walk cycle -----------------------------------------
 // The shared Bloxity base rig is R6-style: single-segment limbs
 // (ArmL1/ArmR1/LegL1/LegR1) and a two-node spine, no forearm/shin/foot bone
