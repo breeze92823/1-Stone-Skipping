@@ -41,8 +41,8 @@ const RELOAD_TIME = 0.45 // s before the next stone is in hand
 // Throws from the Throw Zone always skip the whole canal and land on the
 // end beach: aimed at the beach, constant horizontal speed, and every lake skip
 // rebounds with the same vertical speed (no damping, drag or skip cap).
-// Hop length = speed * 2 * LAKE_HOP_VY / -GRAVITY (~30 m), so ~91 skips.
-const LAKE_THROW_SPEED = 40 // m/s horizontal, ~68 s to cross the canal
+// Hop length = speed * 2 * LAKE_HOP_VY / -GRAVITY (~90 m), so ~50 skips.
+const LAKE_THROW_SPEED = 300 // m/s horizontal, ~37 s to cross the canal
 const LAKE_HOP_VY = 6 // m/s up after each lake skip; peaks ~1.1 m, clears the beach lip
 const LAKE_AIM_MARGIN = 3 // m kept off the canal's side banks when aiming
 const BEACH_AIM_Z = LAKE.maxZ - LAKE_END.depth / 2

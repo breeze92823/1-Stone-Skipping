@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { AdditiveBlending, CanvasTexture, SRGBColorSpace } from 'three'
-import { HACKED_EGG, PATH_TOP, PORTAL, SPAWN } from '../data/world.js'
+import { HACKED_EGG, LAKE, LAKE_END, LAKE_PORTAL, PATH_TOP, PORTAL, SPAWN } from '../data/world.js'
 import { legoMaterial } from '../materials/lego.js'
 import Label from './Label.jsx'
 
@@ -62,7 +62,7 @@ function makeHackedCanvas() {
 // Pirate-themed World 2 portal: an octagonal wooden frame with gold
 // rivets, a skull in a tricorn hat on top, lanterns either side and a
 // spinning blue swirl, standing on a glowing green pad.
-function WorldPortal({ swirlTexture }) {
+function WorldPortal({ swirlTexture, position = [PORTAL.x, PATH_TOP, PORTAL.z], rotY = Math.atan2(SPAWN.x - PORTAL.x, SPAWN.z - PORTAL.z), scale = 1, pad = true, lines = null }) {
   const swirl = useRef()
   const wood = legoMaterial({ top: '#b8773a', side: '#9a5f2a', stud: 0.3 })
   const gold = legoMaterial({ top: '#ffcc33', studStrength: 0, metalness: 0.4, roughness: 0.35 })
@@ -77,25 +77,28 @@ function WorldPortal({ swirlTexture }) {
   const R = 2.7
   const CY = 3.2
   const seg = 2 * R * Math.sin(Math.PI / 8) * 1.12
-  const rotY = Math.atan2(SPAWN.x - PORTAL.x, SPAWN.z - PORTAL.z)
 
   return (
-    <group position={[PORTAL.x, PATH_TOP, PORTAL.z]}>
+    <group position={position} scale={scale}>
       {/* glowing dashed pad */}
-      <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[6.5, 6.5]} />
-        <meshBasicMaterial color="#5dff8a" transparent opacity={0.22} depthWrite={false} />
-      </mesh>
-      {[
-        [0, 3.25, 6.5, 0.12],
-        [0, -3.25, 6.5, 0.12],
-        [3.25, 0, 0.12, 6.5],
-        [-3.25, 0, 0.12, 6.5],
-      ].map(([x, z, w, d], i) => (
-        <mesh key={i} position={[x, 0.04, z]} material={glow}>
-          <boxGeometry args={[w, 0.06, d]} />
-        </mesh>
-      ))}
+      {pad && (
+        <>
+          <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[6.5, 6.5]} />
+            <meshBasicMaterial color="#5dff8a" transparent opacity={0.22} depthWrite={false} />
+          </mesh>
+          {[
+            [0, 3.25, 6.5, 0.12],
+            [0, -3.25, 6.5, 0.12],
+            [3.25, 0, 0.12, 6.5],
+            [-3.25, 0, 0.12, 6.5],
+          ].map(([x, z, w, d], i) => (
+            <mesh key={i} position={[x, 0.04, z]} material={glow}>
+              <boxGeometry args={[w, 0.06, d]} />
+            </mesh>
+          ))}
+        </>
+      )}
 
       <group rotation={[0, rotY, 0]}>
         {Array.from({ length: 8 }).map((_, i) => {
@@ -168,10 +171,12 @@ function WorldPortal({ swirlTexture }) {
 
       <Label
         position={[0, CY + R + 1.5, 0]}
-        lines={[
-          { text: PORTAL.label, size: 0.62, fill: '#ffffff' },
-          { parts: [{ text: PORTAL.sub }, { icon: 'bolt' }], size: 0.3, fill: '#ffffff' },
-        ]}
+        lines={
+          lines ?? [
+            { text: PORTAL.label, size: 0.62, fill: '#ffffff' },
+            { parts: [{ text: PORTAL.sub }, { icon: 'bolt' }], size: 0.3, fill: '#ffffff' },
+          ]
+        }
       />
     </group>
   )
@@ -243,6 +248,15 @@ export default function Portal() {
   return (
     <group>
       <WorldPortal swirlTexture={textures.swirl} />
+      {/* the giant one closing off the lake's end beach, facing up the canal */}
+      <WorldPortal
+        swirlTexture={textures.swirl}
+        position={[(LAKE.minX + LAKE.maxX) / 2, LAKE_END.top, LAKE.maxZ - LAKE_END.depth + LAKE_PORTAL.zOffset]}
+        rotY={Math.PI}
+        scale={LAKE_PORTAL.scale}
+        pad={false}
+        lines={[{ parts: [{ text: 'REQUIRES' }, { icon: 'bolt' }, { text: LAKE_PORTAL.sub }], size: 0.42, fill: '#ffffff' }]}
+      />
       <HackedAdminEgg crackTexture={textures.crack} />
     </group>
   )

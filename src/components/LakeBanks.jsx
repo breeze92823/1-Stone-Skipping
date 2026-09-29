@@ -56,14 +56,26 @@ const ZONE_THEMES = {
     beachProp: 'crystal',
     sign: { fill: ['#dcc4ff', '#9b6df0'], stroke: '#2b1552' },
   },
+  ember: {
+    bank: { top: '#c8613a', top2: '#b6532f', side: '#96421f', side2: '#83371a' },
+    pick: (roll) => (roll < 0.35 ? 'mesa' : roll < 0.6 ? 'deadTree' : roll < 0.85 ? 'lavaRock' : 'cactus'),
+    beachProp: 'mesa',
+    sign: { fill: ['#ffe27a', '#ff8a1f'], stroke: '#4a1a06' },
+  },
+  starfall: {
+    bank: { top: '#5a63c4', top2: '#4c55b4', side: '#3a4194', side2: '#2f3583' },
+    pick: (roll) => (roll < 0.3 ? 'star' : roll < 0.5 ? 'moon' : roll < 0.7 ? 'planet' : 'meteor'),
+    beachProp: 'moon',
+    sign: { fill: ['#dfe4ff', '#8a9bff'], stroke: '#141a52' },
+  },
 }
 
 // Where each zone's stretch of bank starts and ends along the canal.
 const ZONE_SPANS = LAKE_ZONES.map((zone, i) => ({
   zone,
   theme: ZONE_THEMES[zone.id],
-  z0: i === 0 ? BOUNDS.maxZ : LAKE_ZONES[i - 1].endZ,
-  z1: i === LAKE_ZONES.length - 1 ? BANK_END_Z : zone.endZ,
+  z0: i === 0 ? BOUNDS.maxZ : zone.startZ, // the first zone's banks begin at the throw zone
+  z1: i === LAKE_ZONES.length - 1 ? BANK_END_Z : LAKE_ZONES[i + 1].startZ,
 }))
 
 const AUTUMN_LEAVES = [
@@ -414,19 +426,132 @@ function RuneStone({ position, scale = 1, spin = 0 }) {
   )
 }
 
+// Red sandstone mesa: a wide stepped stack of canyon-red blocks.
+function Mesa({ position, scale = 1, spin = 0 }) {
+  const rockA = legoMaterial({ top: '#c9683f', side: '#a9502c', stud: 0.4 })
+  const rockB = legoMaterial({ top: '#dd8354', side: '#bd6438', stud: 0.4 })
+  return (
+    <group position={position} scale={scale} rotation={[0, spin, 0]}>
+      <mesh position={[0, 0.9, 0]} material={rockA} castShadow>
+        <boxGeometry args={[2.6, 1.8, 2.2]} />
+      </mesh>
+      <mesh position={[0.1, 2.3, 0]} material={rockB} castShadow>
+        <boxGeometry args={[2.0, 1.0, 1.7]} />
+      </mesh>
+      <mesh position={[-0.1, 3.2, 0.05]} material={rockA} castShadow>
+        <boxGeometry args={[1.5, 0.8, 1.3]} />
+      </mesh>
+    </group>
+  )
+}
+
+// Dead tree: a bare trunk with two forked branches.
+function DeadTree({ position, scale = 1, spin = 0 }) {
+  const wood = legoMaterial({ top: '#7a4a32', side: '#5f3823', stud: 0.3 })
+  return (
+    <group position={position} scale={scale} rotation={[0, spin, 0]}>
+      <mesh position={[0, 1.4, 0]} material={wood} castShadow>
+        <boxGeometry args={[0.45, 2.8, 0.45]} />
+      </mesh>
+      <mesh position={[0.5, 2.5, 0]} rotation={[0, 0, -0.7]} material={wood} castShadow>
+        <boxGeometry args={[0.28, 1.4, 0.28]} />
+      </mesh>
+      <mesh position={[-0.45, 2.9, 0]} rotation={[0, 0, 0.6]} material={wood} castShadow>
+        <boxGeometry args={[0.28, 1.2, 0.28]} />
+      </mesh>
+    </group>
+  )
+}
+
+// Lava rock: a dark charred boulder with a glowing molten crack on top.
+function LavaRock({ position, scale = 1, spin = 0 }) {
+  const char = legoMaterial({ top: '#4a3a3a', side: '#372b2b', stud: 0.4 })
+  const lava = legoMaterial({ top: '#ffb13a', emissive: '#ff6a1a', emissiveIntensity: 0.9, studStrength: 0 })
+  return (
+    <group position={position} scale={scale} rotation={[0, spin, 0]}>
+      <mesh position={[0, 0.55, 0]} scale={[1.3, 0.85, 1.1]} material={char} castShadow>
+        <dodecahedronGeometry args={[0.9, 0]} />
+      </mesh>
+      <mesh position={[0, 1.12, 0]} scale={[0.9, 0.08, 0.18]} material={lava}>
+        <boxGeometry args={[1.6, 1, 1]} />
+      </mesh>
+    </group>
+  )
+}
+
+// Floating four-point star: two crossed gold shards hovering above the bank.
+function Star({ position, scale = 1, spin = 0 }) {
+  const gold = legoMaterial({ top: '#ffd84a', side: '#ffc21f', emissive: '#ffb800', emissiveIntensity: 0.7, studStrength: 0 })
+  return (
+    <group position={[position[0], position[1] + 2.4 * scale, position[2]]} scale={scale} rotation={[0, spin, 0]}>
+      <mesh scale={[0.35, 1, 0.35]} material={gold}>
+        <octahedronGeometry args={[1, 0]} />
+      </mesh>
+      <mesh scale={[1, 0.35, 0.35]} material={gold}>
+        <octahedronGeometry args={[1, 0]} />
+      </mesh>
+    </group>
+  )
+}
+
+// Crescent moon: a thick partial ring of pale glowing stone, standing upright.
+function Moon({ position, scale = 1, spin = 0 }) {
+  const moon = legoMaterial({ top: '#e4dcff', side: '#cbbff5', emissive: '#b9a8ff', emissiveIntensity: 0.45, studStrength: 0 })
+  return (
+    <group position={[position[0], position[1] + 2.8 * scale, position[2]]} scale={scale} rotation={[0, spin, 0]}>
+      <mesh rotation={[0, 0, Math.PI * 0.35]} material={moon}>
+        <torusGeometry args={[1.1, 0.4, 8, 20, Math.PI * 1.3]} />
+      </mesh>
+    </group>
+  )
+}
+
+// Ringed planet floating above the bank.
+function Planet({ position, scale = 1, spin = 0, variant = 0 }) {
+  const body = legoMaterial({ top: ['#59a8ff', '#ff8fb8', '#7fe0c0'][variant % 3], studStrength: 0 })
+  const ring = legoMaterial({ top: '#fff0c0', side: '#e6d29a', studStrength: 0 })
+  return (
+    <group position={[position[0], position[1] + 2.6 * scale, position[2]]} scale={scale} rotation={[0, spin, 0]}>
+      <mesh material={body} castShadow>
+        <sphereGeometry args={[0.8, 12, 10]} />
+      </mesh>
+      <mesh rotation={[Math.PI / 2 - 0.35, 0, 0.2]} scale={[1, 1, 0.12]} material={ring}>
+        <torusGeometry args={[1.25, 0.28, 6, 24]} />
+      </mesh>
+    </group>
+  )
+}
+
+// Meteorite: a dark boulder with a glowing pale-blue crack.
+function Meteor({ position, scale = 1, spin = 0 }) {
+  const rockMat = legoMaterial({ top: '#4e5670', side: '#3a4157', stud: 0.4 })
+  const crack = legoMaterial({ top: '#9fe8ff', emissive: '#5fd0ff', emissiveIntensity: 0.9, studStrength: 0 })
+  return (
+    <group position={position} scale={scale} rotation={[0, spin, 0]}>
+      <mesh position={[0, 0.55, 0]} scale={[1.3, 0.85, 1.1]} material={rockMat} castShadow>
+        <dodecahedronGeometry args={[0.9, 0]} />
+      </mesh>
+      <mesh position={[0, 1.12, 0]} scale={[0.9, 0.08, 0.18]} material={crack}>
+        <boxGeometry args={[1.6, 1, 1]} />
+      </mesh>
+    </group>
+  )
+}
+
 // Rocks, bushes, palms, cacti, pillars, autumn trees, pumpkins, snow pines,
-// ice crystals, mushrooms, reeds, candy and crystals scattered along each zone's bank tops, kept deterministic so they don't move between loads.
+// ice crystals, mushrooms, reeds, candy, crystals, canyon rock and night-sky
+// props scattered along each zone's bank tops, kept deterministic so they don't move between loads.
 function buildBankDecor() {
   const rand = seededRandom(97)
   const items = [] // { kind, x, y, z, s, r }
-  for (const { zone, theme, z0 } of ZONE_SPANS) {
-    const z1 = Math.min(zone.endZ, BEACH_Z) - 4
+  for (const { theme, z0, z1: spanEnd } of ZONE_SPANS) {
+    const z1 = Math.min(spanEnd, BEACH_Z) - 4
     for (const side of [-1, 1]) {
       const edge = side < 0 ? LAKE.minX : LAKE.maxX
       for (let z = z0 + 6; z < z1; z += 6 + rand() * 8) {
         const tier = Math.floor(rand() * LAKE_BANK.tops.length)
         const x = edge + side * (tier * LAKE_BANK.tierWidth + 1.5 + rand() * (LAKE_BANK.tierWidth - 3))
-        const kind = theme.pick(rand(), z > zone.endZ - 70)
+        const kind = theme.pick(rand(), z > spanEnd - 70)
         items.push({ kind, x, y: LAKE_BANK.tops[tier], z, s: 0.7 + rand() * 0.8, r: rand() * Math.PI * 2, v: items.length % 3 })
       }
     }
@@ -517,6 +642,13 @@ export default function LakeBanks() {
         if (d.kind === 'cactus') return <Cactus key={i} position={[d.x, d.y, d.z]} scale={d.s + 0.3} spin={d.r} />
         if (d.kind === 'autumnTree')
           return <AutumnTree key={i} position={[d.x, d.y, d.z]} scale={d.s + 0.3} spin={d.r} variant={d.v} />
+        if (d.kind === 'star') return <Star key={i} position={[d.x, d.y, d.z]} scale={d.s + 0.3} spin={d.r} />
+        if (d.kind === 'moon') return <Moon key={i} position={[d.x, d.y, d.z]} scale={d.s + 0.3} spin={d.r} />
+        if (d.kind === 'planet') return <Planet key={i} position={[d.x, d.y, d.z]} scale={d.s} spin={d.r} variant={d.v} />
+        if (d.kind === 'meteor') return <Meteor key={i} position={[d.x, d.y, d.z]} scale={d.s} spin={d.r} />
+        if (d.kind === 'mesa') return <Mesa key={i} position={[d.x, d.y, d.z]} scale={d.s + 0.2} spin={d.r} />
+        if (d.kind === 'deadTree') return <DeadTree key={i} position={[d.x, d.y, d.z]} scale={d.s + 0.2} spin={d.r} />
+        if (d.kind === 'lavaRock') return <LavaRock key={i} position={[d.x, d.y, d.z]} scale={d.s} spin={d.r} />
         if (d.kind === 'crystal') return <Crystal key={i} position={[d.x, d.y, d.z]} scale={d.s + 0.3} spin={d.r} variant={d.v} />
         if (d.kind === 'geode') return <Geode key={i} position={[d.x, d.y, d.z]} scale={d.s} spin={d.r} />
         if (d.kind === 'runeStone') return <RuneStone key={i} position={[d.x, d.y, d.z]} scale={d.s} spin={d.r} />
@@ -579,11 +711,11 @@ export default function LakeBanks() {
         )
       })}
 
-      {/* each zone's name sign, hanging over the water at its far end */}
+      {/* each zone's name sign, hanging over the water where the zone starts */}
       {ZONE_SPANS.map(({ zone, theme }) => (
         <Label
           key={zone.id}
-          position={[canalMidX, SIGN_Y, zone.endZ + 2]}
+          position={[canalMidX, SIGN_Y, zone.startZ + 2]}
           lines={[
             {
               parts: [{ icon: zone.icon }, { text: zone.label }, { icon: zone.icon }],
@@ -600,10 +732,12 @@ export default function LakeBanks() {
       <mesh position={[canalMidX, (LAKE_END.top + BANK_BOTTOM) / 2, (BEACH_Z + BANK_END_Z) / 2]} material={sand} receiveShadow>
         <boxGeometry args={[canalW + 2, LAKE_END.top - BANK_BOTTOM, BANK_END_Z - BEACH_Z]} />
       </mesh>
-      {[-0.42, -0.25, -0.05, 0.18, 0.38].map((f, i) => {
+      {[-0.44, -0.36, 0.36, 0.44].map((f, i) => {
         const position = [canalMidX + f * canalW, LAKE_END.top, BEACH_Z + 4 + (i % 2) * 3]
         const scale = 1.4 + (i % 3) * 0.2
         if (endTheme.beachProp === 'cactus') return <Cactus key={i} position={position} scale={scale} spin={i * 1.3} />
+        if (endTheme.beachProp === 'moon') return <Moon key={i} position={position} scale={scale} spin={i * 1.3} />
+        if (endTheme.beachProp === 'mesa') return <Mesa key={i} position={position} scale={scale} spin={i * 1.3} />
         if (endTheme.beachProp === 'crystal') return <Crystal key={i} position={position} scale={scale} spin={i * 1.3} variant={i} />
         if (endTheme.beachProp === 'lollipop') return <Lollipop key={i} position={position} scale={scale} spin={i * 1.3} variant={i} />
         if (endTheme.beachProp === 'mushroom') return <Mushroom key={i} position={position} scale={scale} spin={i * 1.3} variant={i % 2} />

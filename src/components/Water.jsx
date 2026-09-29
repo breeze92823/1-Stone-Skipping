@@ -14,10 +14,11 @@ const RIPPLE_DRIFT = { x: 0.01, y: 0.006 }
 const LAKE_W = LAKE.maxX - LAKE.minX + 2
 const LAKE_MID_X = (LAKE.minX + LAKE.maxX) / 2
 const SEGMENTS = LAKE_ZONES.reduce((segs, zone, i) => {
-  const z1 = i === LAKE_ZONES.length - 1 ? LAKE.maxZ : zone.endZ
+  const z0 = i === 0 ? LAKE.minZ - 10 : zone.startZ
+  const z1 = i === LAKE_ZONES.length - 1 ? LAKE.maxZ : LAKE_ZONES[i + 1].startZ
   const prev = segs[segs.length - 1]
   if (prev && prev.color === zone.water) prev.z1 = z1
-  else segs.push({ color: zone.water, z0: prev ? prev.z1 : LAKE.minZ - 10, z1 })
+  else segs.push({ color: zone.water, z0, z1 })
   return segs
 }, [])
 

@@ -25,23 +25,29 @@ export const BOUNDS = { minX: -46, maxX: 42, minZ: -50, maxZ: 20.5 }
 // sandy beach at the far end. It's narrower than the throw zone strip and
 // centred on the chevron road; low terraced banks line both sides, each
 // tier LAKE_BANK.tierWidth wide and stepping up away from the water.
-export const LAKE = { minX: -22, maxX: 34, minZ: 20.5, maxZ: 2774 }
+export const LAKE = { minX: -22, maxX: 34, minZ: 20.5, maxZ: 4534 }
 export const LAKE_BANK = { tierWidth: 8, tops: [1.2, 3.7, 6.2] }
 export const LAKE_END = { depth: 14, top: 0.3 } // sandy strip across the canal's far end
 
-// Themed stretches of the canal, north to south. Each zone's banks run from
-// the previous zone's endZ (the throw zone for the first) to its own endZ,
-// where its name sign hangs over the water. The last one ends at the beach.
+// Themed stretches of the canal, north to south. Each zone starts at its
+// startZ, where its name sign hangs over the water, and runs to the next
+// zone's startZ (the last runs to the end beach). The first zone starts at
+// the throw zone.
 // `water` / `shallows` tint that stretch of canal.
 export const LAKE_ZONES = [
-  { id: 'palm', label: 'Palm Beach', icon: 'palm', endZ: 270, water: '#14cbe6', shallows: '#a6f4ff' },
-  { id: 'desert', label: 'Cactus Desert', icon: 'cactus', endZ: 586, water: '#14cbe6', shallows: '#a6f4ff' },
-  { id: 'autumn', label: 'Autumn Woods', icon: 'maple', endZ: 952, water: '#eab84e', shallows: '#ffe3a3' },
-  { id: 'frost', label: 'Frost Lake', icon: 'snowflake', endZ: 1320, water: '#8fdcf2', shallows: '#e4fbff' },
-  { id: 'marsh', label: 'Mushroom Marsh', icon: 'mushroom', endZ: 1770, water: '#4fcfb6', shallows: '#bdf7e0' },
-  { id: 'candy', label: 'Candy Banks', icon: 'lollipop', endZ: 2220, water: '#ff9ccb', shallows: '#ffdcec' },
-  { id: 'crystal', label: 'Crystal Valley', icon: 'gem', endZ: LAKE.maxZ - LAKE_END.depth, water: '#a985f2', shallows: '#e0d0ff' },
+  { id: 'palm', label: 'Palm Beach', icon: 'palm', startZ: 200, water: '#14cbe6', shallows: '#a6f4ff' },
+  { id: 'desert', label: 'Cactus Desert', icon: 'cactus', startZ: 586, water: '#14cbe6', shallows: '#a6f4ff' },
+  { id: 'autumn', label: 'Autumn Woods', icon: 'maple', startZ: 952, water: '#eab84e', shallows: '#ffe3a3' },
+  { id: 'frost', label: 'Frost Lake', icon: 'snowflake', startZ: 1320, water: '#8fdcf2', shallows: '#e4fbff' },
+  { id: 'marsh', label: 'Mushroom Marsh', icon: 'mushroom', startZ: 1770, water: '#4fcfb6', shallows: '#bdf7e0' },
+  { id: 'candy', label: 'Candy Banks', icon: 'lollipop', startZ: 2220, water: '#ff9ccb', shallows: '#ffdcec' },
+  { id: 'crystal', label: 'Crystal Valley', icon: 'gem', startZ: 2760, water: '#a985f2', shallows: '#e0d0ff' },
+  { id: 'ember', label: 'Ember River', icon: 'flame', startZ: 3270, water: '#ff8a2e', shallows: '#ffd28a' },
+  { id: 'starfall', label: 'Starfall Shores', icon: 'sparkle', startZ: 3900, water: '#5a6ce0', shallows: '#bcc6ff' },
 ]
+
+// Giant pirate portal standing on the end beach, facing back up the canal.
+export const LAKE_PORTAL = { scale: 5, zOffset: 5, sub: '100M' } // zOffset: metres past the beach's north edge
 
 export const SPAWN = { x: 6, y: PATH_TOP, z: 1 } // in the spawn section
 export const SPAWN_FACING = Math.PI // face north
