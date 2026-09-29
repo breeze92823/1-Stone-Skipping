@@ -10,7 +10,7 @@ import { formatNumber } from '../utils/formatNumber.js'
 
 // Left-edge menu grid (Shop, Rebirth, Pets, Stones, Inventory, Gifts). Rebirth
 // reuses Hud's RebirthWindow via onRebirth; the rest open a modal from here and
-// are hidden unless VITE_SHOW_ADDON=true.
+// are hidden unless VITE_SHOW_ADDON=true (still laid out, so Rebirth keeps its spot).
 const TILES = [
   { id: 'shop', label: 'Shop', icon: '🛍️', tile: 'red' },
   { id: 'rebirth', label: 'Rebirth', icon: '🔄', tile: 'pink' },
@@ -173,10 +173,11 @@ export default function LeftMenu({ onRebirth, spotlightRebirth = false }) {
   return (
     <>
       <div className="left-menu">
-        {TILES.filter((t) => SHOW_ADDON || t.id === 'rebirth').map((t) => (
+        {TILES.map((t) => (
           <button
             key={t.id}
             type="button"
+            style={!SHOW_ADDON && t.id !== 'rebirth' ? { visibility: 'hidden' } : undefined}
             className={`menu-tile tile-${t.tile}${t.id === 'rebirth' && ready ? ' ready' : ''}${t.id === 'rebirth' && spotlightRebirth ? ' tutorial-spot' : ''}`}
             onClick={() => (t.id === 'rebirth' ? onRebirth() : setOpen(t.id))}
           >
