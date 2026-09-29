@@ -52,9 +52,9 @@ export function skillForLevel(level) {
   return i < CUM.length ? CUM[i] : SKILL_MAX
 }
 
-export const REBIRTH_MIN = 1 // players start at X1; there is no X0 -> X1 step
+export const REBIRTH_MIN = 0 // players start at X0
 export const REBIRTH_MAX = 5000
-export const REBIRTH_INITIAL = envInt(import.meta.env.VITE_INITIAL_REBIRTHS, 1, REBIRTH_MIN, REBIRTH_MAX)
+export const REBIRTH_INITIAL = envInt(import.meta.env.VITE_INITIAL_REBIRTHS, 0, REBIRTH_MIN, REBIRTH_MAX)
 
 // When true, rebirth happens automatically the moment the level cap is reached.
 export const AUTO_REBIRTH = import.meta.env.VITE_AUTO_REBIRTH === 'true'
@@ -86,7 +86,7 @@ export function levelProgress(skill) {
 
 // Levels needed to rebirth, indexed by current rebirth count (X0->X1 first).
 // Past the table it keeps adding REBIRTH_LEVELS_STEP per rebirth (125, 150, 175...).
-const REBIRTH_LEVELS = [10, 20, 40, 60, 80, 100, 125, 150]
+const REBIRTH_LEVELS = [20, 40, 60, 80, 100, 125, 150]
 const REBIRTH_LEVELS_STEP = 25
 
 export function rebirthLevelsRequired(rebirth) {

@@ -381,7 +381,7 @@ export default function Hud() {
             <Bolt className="skill-bolt" />
             {formatNumber(skill)} SKILL
           </span>
-          <span className="mult outlined">x{multiplier * rebirths} Multiplier</span>
+          <span className="mult outlined">x{multiplier * (rebirths + 1)} Multiplier</span>
         </div>
 
         <div className="levelbar">

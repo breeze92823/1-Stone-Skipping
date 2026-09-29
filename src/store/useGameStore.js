@@ -59,7 +59,7 @@ export const useGameStore = create((set, get) => ({
     set((s) =>
       settle({
         ...s,
-        skill: clamp(s.skill + Math.floor(amount * s.multiplier * s.rebirths), SKILL_MIN, skillCap(s.rebirths)),
+        skill: clamp(s.skill + Math.floor(amount * s.multiplier * (s.rebirths + 1)), SKILL_MIN, skillCap(s.rebirths)),
       }),
     ),
   // Flat grant (Bux boosts) — no multipliers.
