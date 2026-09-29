@@ -13,8 +13,6 @@ export const LEVEL_MIN = 1
 export const REBIRTH_INITIAL = 0
 export const REBIRTH_MIN = 0
 export const REBIRTH_MAX = 5000
-export const REBIRTH_SKILL_BASE = 100 // requirement(rebirth) = REBIRTH_SKILL_BASE * REBIRTH_SKILL_RATIO ^ rebirth
-export const REBIRTH_SKILL_RATIO = 5
 
 export function clamp(n, min, max) {
   return n < min ? min : n > max ? max : n
@@ -30,8 +28,19 @@ export function levelProgress(skill) {
   return { level: levelForSkill(total), into: total % SKILL_PER_LEVEL, span: SKILL_PER_LEVEL }
 }
 
+// Levels needed to rebirth, indexed by current rebirth count (X0->X1 first).
+// Past the table it keeps adding REBIRTH_LEVELS_STEP per rebirth (125, 150, 175...).
+const REBIRTH_LEVELS = [10, 20, 40, 60, 80, 100, 125, 150]
+const REBIRTH_LEVELS_STEP = 25
+
+export function rebirthLevelsRequired(rebirth) {
+  if (rebirth < REBIRTH_LEVELS.length) return REBIRTH_LEVELS[rebirth]
+  return REBIRTH_LEVELS[REBIRTH_LEVELS.length - 1] + REBIRTH_LEVELS_STEP * (rebirth - REBIRTH_LEVELS.length + 1)
+}
+
+// Skill needed = levels required * SKILL_PER_LEVEL.
 export function rebirthRequirement(rebirth) {
-  return REBIRTH_SKILL_BASE * Math.pow(REBIRTH_SKILL_RATIO, rebirth)
+  return rebirthLevelsRequired(rebirth) * SKILL_PER_LEVEL
 }
 
 // Single source of truth for rebirth eligibility — the store's guard and the
