@@ -121,7 +121,7 @@ in a moat, entered by a bridge from the south.
 | **Moat Blocks** | The stone blocks along the moat's outer banks and at the courtyard corners | around the moat | `buildMoatRocks()` | Leaderboards.jsx |
 | **Top Level Board** | West side wall, facing east into the courtyard | (1.3, -38.5) | `LEADERBOARDS[0]` | Leaderboards.jsx (`Leaderboard`) |
 | **Top Time Played Board** | Back wall, left | (5.3, -45.2) | `LEADERBOARDS[1]` | Leaderboards.jsx |
-| **Top Robux Spent Board** | Back wall, right | (12.7, -45.2) | `LEADERBOARDS[2]` | Leaderboards.jsx |
+| **Top Skills Board** | Back wall, right | (12.7, -45.2) | `LEADERBOARDS[2]` | Leaderboards.jsx |
 | **Top Wins Board** | East side wall, facing west into the courtyard | (16.7, -38.5) | `LEADERBOARDS[3]` | Leaderboards.jsx |
 | **Board Titles** | Each board's name painted flat along its top (not a floating label), shrunk to fit the board | on each board | `TitleSign` | Leaderboards.jsx |
 | **Waterfall** | Wide glowing blue fall down the north cliff behind both back boards, splashing into the Moat | x -0.5…18.5, z -49.4 | `WATERFALL` | Leaderboards.jsx (`Waterfall`) |

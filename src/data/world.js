@@ -152,7 +152,7 @@ export const LEADER_BRIDGE = { x0: 5.5, x1: 12.5, z0: -31, z1: -24, top: 0.4 }
 export const LEADERBOARDS = [
   { title: 'Top Level', x: 1.3, z: -38.5, rot: Math.PI / 2, stat: 'level' },
   { title: 'Top Time Played', x: 5.3, z: -45.2, rot: 0, stat: 'time' },
-  { title: 'Top Robux Spent', x: 12.7, z: -45.2, rot: 0, stat: 'robux' },
+  { title: 'Top Skills', x: 12.7, z: -45.2, rot: 0, stat: 'skill' },
   { title: 'Top Wins', x: 16.7, z: -38.5, rot: -Math.PI / 2, stat: 'wins' },
 ]
 export const WATERFALL = { x0: -0.5, x1: 18.5, z: -49.4, bottom: LEADER_MOAT.y, top: 32 }

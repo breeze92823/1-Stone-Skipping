@@ -14,73 +14,123 @@ import {
 import { legoMaterial, PALETTE } from '../materials/lego.js'
 import { LABEL_FONT, makeLabelTexture } from '../utils/labelCanvas.js'
 import { seededRandom } from '../utils/random.js'
+import { getLeaderboard, getSelfId } from '../systems/net.js'
+import { getDisplayName } from '../systems/bloxity.js'
+import { useGameStore } from '../store/useGameStore.js'
+import { formatNumber } from '../utils/formatNumber.js'
 import Label, { useFontsReady } from './Label.jsx'
 
-const NAMES = [
-  'SkipKing_77', 'PebblePro', 'xXSplashXx', 'RippleRush', 'LakeLegend', 'StoneWizard',
-  'BounceBoss', 'AquaAce', 'FlickMaster', 'TidalTom', 'SkimQueen', 'PondHopper',
-]
+// Board stat (data/world.js LEADERBOARDS) -> the server's board key
+// (Stone-Skipping-backend's `leaderboard` message).
+const BOARD_KEY = { level: 'level', time: 'playTime', skill: 'skill', wins: 'wins' }
+const BOARD_ROWS = 10
+const BOARD_POLL_MS = 1000
 
-function statValue(stat, rank) {
-  const f = 1 / (1 + rank * 0.45)
-  switch (stat) {
-    case 'level':
-      return String(Math.round(9800 * f))
-    case 'time':
-      return `${Math.round(1480 * f)}h ${(rank * 17) % 60}m`
-    case 'robux':
-      return `R$ ${Math.round(245000 * f).toLocaleString('en-US')}`
-    default:
-      return `${(98.4 * f).toFixed(1)}M`
-  }
+function formatDuration(seconds) {
+  const m = Math.floor(Math.max(0, seconds) / 60)
+  return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`
 }
 
-function makeBoardCanvas(stat, seed, fontsReady) {
-  const W = 512
-  const H = 400
-  const canvas = document.createElement('canvas')
-  canvas.width = W
-  canvas.height = H
+function formatValue(stat, value) {
+  return stat === 'time' ? formatDuration(value) : formatNumber(Math.max(0, Number(value) || 0))
+}
+
+// The server's merged all-time + online rows for this board. Before the first
+// broadcast (or with no server) fall back to just our own row, so the board
+// never sits empty; time played isn't tracked locally, so that board waits.
+function boardRows(stat) {
+  const rows = getLeaderboard(BOARD_KEY[stat])
+  if (rows.length || stat === 'time') return rows.slice(0, BOARD_ROWS)
+  const s = useGameStore.getState()
+  return [{ id: 'self', name: getDisplayName(), value: stat === 'level' ? s.level : s[stat] }]
+}
+
+function drawBoard(canvas, stat, rows, selfId, fontsReady) {
+  const W = canvas.width
+  const H = canvas.height
   const ctx = canvas.getContext('2d')
+  ctx.clearRect(0, 0, W, H)
   ctx.fillStyle = '#17692a'
   ctx.fillRect(0, 0, W, H)
-  const rows = 10
   const top = 36
-  const rowH = (H - top - 8) / rows
+  const rowH = (H - top - 8) / BOARD_ROWS
   ctx.fillStyle = '#0f5220'
   ctx.fillRect(0, 0, W, top)
   ctx.font = `${fontsReady ? '' : 'bold '}20px ${LABEL_FONT}`
   ctx.textBaseline = 'middle'
+  ctx.textAlign = 'left'
   ctx.fillStyle = '#b8f5c4'
   ctx.fillText('#', 16, top / 2)
   ctx.fillText('Player', 64, top / 2)
   ctx.textAlign = 'right'
   ctx.fillText('Value', W - 16, top / 2)
-  for (let i = 0; i < rows; i++) {
+  for (let i = 0; i < BOARD_ROWS; i++) {
     const y = top + i * rowH
     ctx.fillStyle = i % 2 ? '#1c7a33' : '#22903d'
     ctx.fillRect(6, y + 2, W - 12, rowH - 4)
+    const row = rows[i]
+    if (!row) continue
+    // Our own row: gold band + outline so it stands out. Offline, boardRows()'s
+    // fallback row has id 'self'.
+    const isSelf = row.id === selfId || row.id === 'self'
+    if (isSelf) {
+      ctx.fillStyle = '#7a6a12'
+      ctx.fillRect(6, y + 2, W - 12, rowH - 4)
+      ctx.strokeStyle = '#ffd84a'
+      ctx.lineWidth = 3
+      ctx.strokeRect(7.5, y + 3.5, W - 15, rowH - 7)
+    }
     ctx.fillStyle = i === 0 ? '#ffd84a' : i === 1 ? '#e6eef5' : i === 2 ? '#f0a35e' : '#ffffff'
     ctx.textAlign = 'left'
     ctx.fillText(`${i + 1}`, 16, y + rowH / 2)
-    ctx.fillStyle = '#ffffff'
-    ctx.fillText(NAMES[(i + seed * 5) % NAMES.length], 64, y + rowH / 2)
+    ctx.fillStyle = isSelf ? '#fff3b0' : '#ffffff'
+    // Long names are clipped to keep clear of the value column.
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(64, y, W - 64 - 130, rowH)
+    ctx.clip()
+    ctx.fillText(row.name || 'Player', 64, y + rowH / 2)
+    ctx.restore()
     ctx.textAlign = 'right'
     ctx.fillStyle = '#d9ffe0'
-    ctx.fillText(statValue(stat, i), W - 16, y + rowH / 2)
+    ctx.fillText(formatValue(stat, row.value), W - 16, y + rowH / 2)
   }
-  return canvas
 }
 
-function Leaderboard({ board, index }) {
+function Leaderboard({ board }) {
   const fontsReady = useFontsReady()
-  const texture = useMemo(() => {
-    const t = new CanvasTexture(makeBoardCanvas(board.stat, index, fontsReady))
+  // One canvas/texture per board, redrawn in place when the rows change.
+  const { canvas, texture } = useMemo(() => {
+    const c = document.createElement('canvas')
+    c.width = 512
+    c.height = 400
+    const t = new CanvasTexture(c)
     t.colorSpace = SRGBColorSpace
     t.anisotropy = 4
-    return t
-  }, [board, index, fontsReady])
+    return { canvas: c, texture: t }
+  }, [])
   useEffect(() => () => texture.dispose(), [texture])
+
+  const lastKey = useRef('')
+  const accumMs = useRef(BOARD_POLL_MS) // draw on the first frame
+  const redraw = () => {
+    const rows = boardRows(board.stat)
+    const selfId = getSelfId()
+    const key = `${fontsReady}|${selfId}|${rows.map((r) => `${r.id}:${r.name}:${r.value}`).join('|')}`
+    if (key === lastKey.current) return
+    lastKey.current = key
+    drawBoard(canvas, board.stat, rows, selfId, fontsReady)
+    texture.needsUpdate = true
+  }
+  // A leaderboard only needs a roughly-current rank, so poll instead of
+  // repainting on every store change.
+  useFrame((_s, dt) => {
+    accumMs.current += dt * 1000
+    if (accumMs.current < BOARD_POLL_MS) return
+    accumMs.current = 0
+    redraw()
+  })
+  useEffect(redraw, [fontsReady]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const wood = legoMaterial({ top: '#c98a4b', side: PALETTE.wood, stud: 0.3 })
   const roof = legoMaterial({ top: '#8fe853', side: '#5fd12a', stud: 0.3 })
@@ -411,8 +461,8 @@ export default function Leaderboards() {
       <Box {...LEADER_COURT} y1={LEADER_COURT.top} material={court} cast />
       <Box {...LEADER_BRIDGE} y1={LEADER_BRIDGE.top} material={bridge} />
       <Box {...LEADER_BRIDGE} z0={LEADER_MOAT.z1} y0={-0.1} y1={PATH_TOP + 0.02} material={bridge} />
-      {LEADERBOARDS.map((b, i) => (
-        <Leaderboard key={b.title} board={b} index={i} />
+      {LEADERBOARDS.map((b) => (
+        <Leaderboard key={b.title} board={b} />
       ))}
       <Moat />
       <Waterfall />

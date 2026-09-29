@@ -107,6 +107,11 @@ export function getLeaderboard(stat) {
   return globalLeaderboard[stat] || []
 }
 
+// Our own session id (the `id` of our row on the leaderboards), '' while offline.
+export function getSelfId() {
+  return selfId
+}
+
 async function loadSdk() {
   if (!sdkModule) sdkModule = await import('@colyseus/sdk')
   return sdkModule
