@@ -222,7 +222,7 @@ function HackedAdminEgg({ crackTexture }) {
         position={[0, 2.9, 0]}
         lines={[
           { text: 'Hacked Admin Egg', size: 0.42, fill: ['#8dff9a', '#1fd94a'] },
-          { parts: [{ icon: 'robux', color: '#7ce08a' }, { text: '100', fill: '#c6ffb0' }], size: 0.32 },
+          { text: 'Rebirth 10 Required', size: 0.32, fill: '#c6ffb0' },
         ]}
       />
     </group>

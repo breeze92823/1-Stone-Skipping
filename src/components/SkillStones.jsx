@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { PATH_TOP, PHOENIX_RELIC, SKILL_STONES, SKILL_TILE } from '../data/world.js'
+import { PATH_TOP, PHOENIX_RELIC, SHOW_ADDON, SKILL_STONES, SKILL_TILE } from '../data/world.js'
 import { legoMaterial, PALETTE } from '../materials/lego.js'
 import { useGameStore } from '../store/useGameStore.js'
 import Label from './Label.jsx'
@@ -109,7 +109,7 @@ export default function SkillStones() {
         </group>
         )
       })}
-      <PhoenixRelic />
+      {SHOW_ADDON && <PhoenixRelic />}
     </group>
   )
 }

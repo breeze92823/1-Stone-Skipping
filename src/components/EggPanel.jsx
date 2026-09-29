@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { EGG_PANELS, eggPanelState } from '../systems/eggPanel.js'
 import { hatchOne, hatchMulti, toggleAuto } from '../systems/eggHatch.js'
 import { useGameStore } from '../store/useGameStore.js'
@@ -8,6 +8,7 @@ import { useGameStore } from '../store/useGameStore.js'
 export default function EggPanel() {
   const [kind, setKind] = useState(null)
   const [hover, setHover] = useState(null)
+  const rootRef = useRef(null)
   const auto = useGameStore((s) => s.autoHatch)
   const owned = useGameStore((s) => s.ownedPets)
 
@@ -16,11 +17,29 @@ export default function EggPanel() {
     return () => clearInterval(id)
   }, [])
 
+  // Follow the egg's projected screen position every frame (DOM transform only).
+  useEffect(() => {
+    if (!kind) return
+    let raf
+    const tick = () => {
+      const root = rootRef.current
+      const s = eggPanelState.screen
+      if (root) {
+        root.style.visibility = s.visible ? 'visible' : 'hidden'
+        root.style.transform = `translate(${s.x}px, ${s.y}px) translate(${s.side === 'right' ? '0%' : '-100%'}, -50%) scale(${s.scale})`
+        root.style.transformOrigin = s.side === 'right' ? '0% 50%' : '100% 50%'
+      }
+      raf = requestAnimationFrame(tick)
+    }
+    tick()
+    return () => cancelAnimationFrame(raf)
+  }, [kind])
+
   const panel = kind && EGG_PANELS[kind]
   if (!panel) return null
 
   return (
-    <div className="egg-panel">
+    <div ref={rootRef} className="egg-panel" style={{ visibility: 'hidden' }}>
       <div className="egg-odds">
         <div className="egg-odds-title">{panel.title}</div>
         <div className="egg-odds-grid">

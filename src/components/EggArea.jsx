@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { AdditiveBlending, CanvasTexture, DoubleSide, SRGBColorSpace } from 'three'
-import { CLAIM_CHEST, EGGS, FEATURED_PET, PATH_TOP } from '../data/world.js'
+import { CLAIM_CHEST, EGGS, FEATURED_PET, PATH_TOP, SHOW_ADDON } from '../data/world.js'
 import { legoMaterial } from '../materials/lego.js'
 import Label from './Label.jsx'
 
@@ -64,11 +64,12 @@ function EggPedestal({ egg, rainbowTexture }) {
   const lines = rainbow
     ? [
         { text: 'Rainbow Egg', size: 0.52, fill: 'rainbow' },
-        { parts: [{ icon: 'robux', color: '#7ce08a' }, { text: String(egg.robux), fill: '#c6ffb0' }], size: 0.36 },
+        { text: `Rebirth ${egg.rebirths} Required`, size: 0.34, fill: '#c6ffb0' },
       ]
     : [
         { text: egg.label, size: 0.48, fill: egg.labelColor },
         { parts: [{ icon: 'trophy' }, { text: egg.wins, fill: ['#fff6c4', '#ffd84a'] }], size: 0.34 },
+        ...(egg.rebirths ? [{ text: `Rebirth ${egg.rebirths} Required`, size: 0.3, fill: '#c6ffb0' }] : []),
       ]
 
   return (
@@ -205,7 +206,7 @@ function FeaturedPet() {
         </mesh>
       </group>
 
-      <Label
+      {SHOW_ADDON && <Label
         position={[0, 4.1, 0]}
         lines={[
           { text: 'STOCK 878/1000', size: 0.36, fill: ['#ffffff', '#cfefff'] },
@@ -219,7 +220,7 @@ function FeaturedPet() {
           },
           { text: 'Better', size: 0.44, fill: ['#9a5cff', '#3a3cff'] },
         ]}
-      />
+      />}
     </group>
   )
 }
@@ -323,7 +324,7 @@ export default function EggArea() {
         <EggPedestal key={egg.kind} egg={egg} rainbowTexture={textures.rainbow} />
       ))}
       <FeaturedPet />
-      <ClaimChest glowTexture={textures.glow} />
+      {SHOW_ADDON && <ClaimChest glowTexture={textures.glow} />}
     </group>
   )
 }

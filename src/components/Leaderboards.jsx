@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import { AdditiveBlending, CanvasTexture, RepeatWrapping, SRGBColorSpace } from 'three'
 import {
   ADMIN_BOARD,
+  SHOW_ADDON,
   CHECKER,
   LEADER_BRIDGE,
   LEADER_COURT,
@@ -466,7 +467,7 @@ export default function Leaderboards() {
       ))}
       <Moat />
       <Waterfall />
-      <AdminBoard />
+      {SHOW_ADDON && <AdminBoard />}
     </group>
   )
 }

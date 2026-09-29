@@ -13,6 +13,7 @@ import {
 import { legoMaterial } from '../materials/lego.js'
 import { useGameStore } from '../store/useGameStore.js'
 import Label from './Label.jsx'
+import { formatNumber } from '../utils/formatNumber.js'
 
 // Colours per pool, read off the screenshots: the natural 1x lake with its
 // wooden dock, then teal, purple (crystals), ice-white/blue, gold, and the
@@ -141,9 +142,9 @@ function Pool({ pool, textures }) {
 
   const labelX = platform.x0 + POOL_PLATFORM.length / 2
   const labelLines = []
-  if (pool.robux !== undefined) {
-    labelLines.push({ text: 'ALL WORLDS', size: 0.34, fill: '#ffffff' })
-    labelLines.push({ parts: [{ icon: 'robux' }, { text: String(pool.robux) }], size: 0.62, pill: '#22252b', fill: '#ffffff' })
+  if (pool.winCost !== undefined) {
+    labelLines.push({ text: `REBIRTH ${pool.rebirths} REQUIRED`, size: 0.34, fill: '#ffffff' })
+    labelLines.push({ parts: [{ icon: 'trophy' }, { text: `${formatNumber(pool.winCost)} Wins`, fill: ['#fff6c4', '#ffd84a'] }], size: 0.5 })
   } else {
     labelLines.push({ parts: [{ icon: 'rebirth' }, { text: String(pool.signRebirths ?? pool.rebirths) }], size: 0.62, pill: '#22252b', fill: '#ffffff' })
   }

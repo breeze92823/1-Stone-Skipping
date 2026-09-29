@@ -101,8 +101,8 @@ export const POOLS = [
   { id: 'p4', mult: 4, rebirths: 3, signRebirths: 2, len: 14, theme: 'teal' },
   { id: 'p10', mult: 10, rebirths: 5, signRebirths: 4, len: 17, theme: 'purple' },
   { id: 'p20', mult: 20, rebirths: 7, signRebirths: 6, len: 19, theme: 'ice' },
-  { id: 'p15', mult: 15, robux: 110, len: 21, theme: 'gold' },
-  { id: 'p50', mult: 50, robux: 255, len: 23, theme: 'neon' },
+  { id: 'p15', mult: 15, rebirths: 12, winCost: 10000, len: 21, theme: 'gold' },
+  { id: 'p50', mult: 50, rebirths: 13, winCost: 20000, len: 23, theme: 'neon' },
 ].map((p, i) => ({ ...p, zc: FIRST_POOL_Z - i * POOL_PITCH, w: POOL_W }))
 
 export function poolRect(p) {
@@ -123,7 +123,7 @@ export function poolInsetRect(p) {
 }
 
 export function isPoolUnlocked(p, rebirths) {
-  return p.robux === undefined && rebirths >= p.rebirths
+  return p.winCost === undefined && rebirths >= p.rebirths
 }
 
 // Where the tutorial arrows lead: the 1x pool's throwing platform.
@@ -133,10 +133,13 @@ export const GUIDE_TARGET = { x: POOL_EAST_X - POOL_RIM - POOL_PLATFORM.length /
 // Rare either side of it, Common and Rainbow at the front corners.
 export const EGGS = [
   { kind: 'common', x: -2, z: -13.2, label: 'COMMON', color: '#e3ecf5', labelColor: '#f2f4f7', wins: '50 Wins' },
-  { kind: 'uncommon', x: 0.8, z: -18, label: 'UNCOMMON', color: '#2fe04c', labelColor: '#3ee356', wins: '500 Wins' },
-  { kind: 'rare', x: 13.2, z: -18, label: 'RARE', color: '#2cc6ff', labelColor: '#4fc8ff', wins: '4K Wins' },
-  { kind: 'rainbow', x: 15.6, z: -13.2, label: 'Rainbow Egg', robux: 30 },
+  { kind: 'uncommon', x: 0.8, z: -18, label: 'UNCOMMON', color: '#2fe04c', labelColor: '#3ee356', wins: '500 Wins', rebirths: 8 },
+  { kind: 'rare', x: 13.2, z: -18, label: 'RARE', color: '#2cc6ff', labelColor: '#4fc8ff', wins: '4K Wins', rebirths: 8 },
+  { kind: 'rainbow', x: 15.6, z: -13.2, label: 'Rainbow Egg', rebirths: 10 },
 ]
+// VITE_SHOW_ADDON=true shows the add-on features (Featured Pet label, Claim Chest, Phoenix Relic,
+// Admin Abuse board); anything else hides them.
+export const SHOW_ADDON = import.meta.env.VITE_SHOW_ADDON === 'true'
 export const FEATURED_PET = { x: 7, z: -20.5 }
 export const CLAIM_CHEST = { x: 21.5, z: -7.5 } // on the grass just SE of the egg plaza
 export const ADMIN_BOARD = { x: 1.5, z: -26, rot: 0.15 }
@@ -218,8 +221,8 @@ export const COLLIDERS = [
   ...TREES.map(([x, z]) => [x, z, 0.8]),
   ...EGGS.map((e) => [e.x, e.z, 1.3]),
   [FEATURED_PET.x, FEATURED_PET.z, 1.9],
-  [CLAIM_CHEST.x, CLAIM_CHEST.z, 1.5],
+  ...(SHOW_ADDON ? [[CLAIM_CHEST.x, CLAIM_CHEST.z, 1.5]] : []),
   [PORTAL.x, PORTAL.z, 2.2],
   [HACKED_EGG.x, HACKED_EGG.z, 1.2],
-  [PHOENIX_RELIC.x, PHOENIX_RELIC.z, 1.3],
+  ...(SHOW_ADDON ? [[PHOENIX_RELIC.x, PHOENIX_RELIC.z, 1.3]] : []),
 ]

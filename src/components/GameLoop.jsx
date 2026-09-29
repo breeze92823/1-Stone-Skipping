@@ -30,7 +30,7 @@ export default function GameLoop() {
     stepStones(dt)
     stepSplashes(dt)
     stepInteract()
-    stepEggPanel()
+    stepEggPanel(camera)
     stepEggHatch()
     updateCamera(camera, dt)
   })
