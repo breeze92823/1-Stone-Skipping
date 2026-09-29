@@ -2,6 +2,9 @@ import { useThree, useFrame } from '@react-three/fiber'
 import { step as stepPlayer } from '../systems/playerMovement.js'
 import { update as updateCamera } from '../systems/cameraOrbit.js'
 import { stepPickupAndThrow, stepStones } from '../systems/stoneActions.js'
+import { step as stepInteract } from '../systems/interact.js'
+import { step as stepActionPopups } from '../systems/actionPopups.js'
+import '../systems/skillStoneZones.js' // registers the Skill Stones yard's hold-E zones
 
 // The single simulation tick. Rendered before the view components so its
 // useFrame subscribes first and runs first each frame.
@@ -16,9 +19,11 @@ export default function GameLoop() {
 
   useFrame((_state, rawDelta) => {
     const dt = Math.min(rawDelta, 0.1) // clamp huge frames (tab switch, breakpoint)
+    stepActionPopups(dt, camera)
     stepPlayer(dt)
     stepPickupAndThrow(camera, dt)
     stepStones(dt)
+    stepInteract()
     updateCamera(camera, dt)
   })
 

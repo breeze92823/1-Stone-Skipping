@@ -82,6 +82,12 @@ function onBlur() {
   recomputeMove()
 }
 
+// Continuous "is E physically held" signal for systems/interact.js's hold gate.
+export const INTERACT_KEY = 'KeyE'
+export function isInteractKeyDown() {
+  return held.has(INTERACT_KEY)
+}
+
 export function install() {
   if (installed) return
   installed = true

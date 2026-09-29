@@ -1,16 +1,30 @@
 import { create } from 'zustand'
+import {
+  SKILL_INITIAL,
+  SKILL_MIN,
+  SKILL_MAX,
+  REBIRTH_INITIAL,
+  REBIRTH_MIN,
+  REBIRTH_MAX,
+  levelForSkill,
+  canAcceptRebirth,
+  clamp,
+} from '../data/progression.js'
 
 // Lightweight, infrequently-changing game state for the HUD. The thrown
 // stones' per-frame physics live in systems/stoneActions.js instead — that
 // changes every frame and would thrash React if it lived here.
 //
-// Starting values match the reference screenshots (level 11, 7/10, 107 skill).
-export const useGameStore = create((set) => ({
-  skill: 107,
-  level: 11,
-  xp: 7,
-  xpNeeded: 10,
-  rebirths: 0,
+// Skill is the raw earned total (Age-every-click's "Age"); level is always
+// derived from it via derive().
+function derive(state) {
+  return { ...state, level: levelForSkill(state.skill) }
+}
+
+export const useGameStore = create((set, get) => ({
+  skill: SKILL_INITIAL,
+  level: levelForSkill(SKILL_INITIAL),
+  rebirths: REBIRTH_INITIAL,
   wins: 0,
   multiplier: 1,
   friendBoost: 0,
@@ -29,17 +43,42 @@ export const useGameStore = create((set) => ({
 
   registerSkip: (skips) => set((s) => ({ skipCount: skips, bestSkips: Math.max(s.bestSkips, skips) })),
 
-  addSkill: (amount) => set((s) => ({ skill: s.skill + amount * s.multiplier })),
+  // Earned by skipping: scaled by the multiplier and (rebirths + 1), the same
+  // rebirth bonus Age-every-click applies to each click.
+  addSkill: (amount) =>
+    set((s) =>
+      derive({
+        ...s,
+        skill: clamp(s.skill + Math.floor(amount * s.multiplier * (s.rebirths + 1)), SKILL_MIN, SKILL_MAX),
+      }),
+    ),
+  // Flat grant (Bux boosts) — no multipliers.
+  grantSkill: (amount) => set((s) => derive({ ...s, skill: clamp(s.skill + amount, SKILL_MIN, SKILL_MAX) })),
   addWins: (amount) => set((s) => ({ wins: s.wins + amount })),
 
-  addXp: (amount) =>
-    set((s) => {
-      let xp = s.xp + amount
-      let level = s.level
-      while (xp >= s.xpNeeded) {
-        xp -= s.xpNeeded
-        level += 1
-      }
-      return { xp, level }
-    }),
+  // Skill Stones yard: wins are spent to own a stone, one stone is equipped.
+  // Stones are identified by their model name (unique in SKILL_STONES).
+  ownedStones: ['pebble'],
+  equippedStone: 'pebble',
+  buyStone: (id, cost) =>
+    set((s) =>
+      s.ownedStones.includes(id) || s.wins < cost
+        ? s
+        : { wins: s.wins - cost, ownedStones: [...s.ownedStones, id], equippedStone: id },
+    ),
+  equipStone: (id) => set((s) => (s.ownedStones.includes(id) ? { equippedStone: id } : s)),
+
+  // Manual, gated by canAcceptRebirth. Re-checks eligibility itself so a
+  // duplicate/stale caller can never double-apply a rebirth.
+  acceptRebirth: () => {
+    const state = get()
+    if (!canAcceptRebirth(state.skill, state.rebirths)) return
+    set((s) =>
+      derive({
+        ...s,
+        rebirths: clamp(s.rebirths + 1, REBIRTH_MIN, REBIRTH_MAX),
+        skill: SKILL_INITIAL,
+      }),
+    )
+  },
 }))

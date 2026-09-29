@@ -156,19 +156,19 @@ const STONE_ROW_Z = [-12.5, -9, -5.5, -2, 1.5]
 const NEAR_ROW_X = 31
 const FAR_ROW_X = 35.5
 export const SKILL_STONES = [
-  { skill: '+1 Skill', wins: '0 Wins', model: 'pebble', unlocked: true },
-  { skill: '+3 Skill', wins: '2 Wins', model: 'scallop', unlocked: true },
-  { skill: '+5 Skill', wins: '10 Wins', model: 'shell' },
-  { skill: '+12 Skill', wins: '40 Wins', model: 'starfish' },
-  { skill: '+30 Skill', wins: '150 Wins', model: 'wood' },
+  { skill: '+1 Skill', wins: '0 Wins', model: 'pebble', value: 1, cost: 0 },
+  { skill: '+3 Skill', wins: '2 Wins', model: 'scallop', value: 3, cost: 2 },
+  { skill: '+5 Skill', wins: '10 Wins', model: 'shell', value: 5, cost: 10 },
+  { skill: '+12 Skill', wins: '40 Wins', model: 'starfish', value: 12, cost: 40 },
+  { skill: '+30 Skill', wins: '150 Wins', model: 'wood', value: 30, cost: 150 },
 ].map((s, i) => ({ ...s, x: NEAR_ROW_X, z: STONE_ROW_Z[i] }))
   .concat(
     [
-      { skill: '+75 Skill', wins: '500 Wins', model: 'arrowhead' },
-      { skill: '+200 Skill', wins: '1.5K Wins', model: 'disc' },
-      { skill: '+500 Skill', wins: '4.5K Wins', model: 'ring' },
-      { skill: '+1.25K Skill', wins: '14K Wins', model: 'obsidian' },
-      { skill: '+3.5K Skill', wins: '40K Wins', model: 'coral' },
+      { skill: '+75 Skill', wins: '500 Wins', model: 'arrowhead', value: 75, cost: 500 },
+      { skill: '+200 Skill', wins: '1.5K Wins', model: 'disc', value: 200, cost: 1500 },
+      { skill: '+500 Skill', wins: '4.5K Wins', model: 'ring', value: 500, cost: 4500 },
+      { skill: '+1.25K Skill', wins: '14K Wins', model: 'obsidian', value: 1250, cost: 14000 },
+      { skill: '+3.5K Skill', wins: '40K Wins', model: 'coral', value: 3500, cost: 40000 },
     ].map((s, i) => ({ ...s, x: FAR_ROW_X, z: STONE_ROW_Z[i], highLabel: true })),
   )
 // On the path directly in front of the +5 stone.

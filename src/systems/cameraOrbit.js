@@ -3,6 +3,7 @@ import { inputState } from './input.js'
 import { player } from './playerState.js'
 import { safeDistance } from './cameraCollision.js'
 import { getTrackedStone } from './stoneActions.js'
+import { isInThrowZone } from '../data/world.js'
 
 // Third-person follow with right-drag orbit + wheel zoom. Position and
 // look-at ease at different rates so the rig reads as a follow cam rather
@@ -33,6 +34,13 @@ const LOOK_SMOOTHING = 20
 // A same-frame jump in the player's position bigger than this is a teleport
 // (a respawn) rather than real movement — snap instead of swooping.
 const TELEPORT_DISTANCE = 15
+
+// The view held while a throw plays: behind the thrower, looking out over
+// the water with the horizon high in frame.
+const THROW_PITCH = 0.2
+const THROW_DISTANCE = 10
+const THROW_YAW_OFFSET = Math.PI / 6 // +30deg about Y from directly behind the thrower
+let lastThrowCount = player.throwCount
 
 const target = { x: 0, y: 0, z: 0 }
 const lookAt = { x: 0, y: 0, z: 0 }
@@ -97,6 +105,19 @@ export function update(camera, dt) {
   if (teleported) {
     state.yaw = player.facing + Math.PI
     state.pitch = START_PITCH
+  }
+
+  // A throw press swings the orbit to the throw view: behind the
+  // player (who was just turned toward the target), rotated 30deg, low and close. The
+  // normal follow below eases into it, and the stone-tracking freeze then
+  // keeps exactly that angle while only Z moves with the stone.
+  if (player.throwCount !== lastThrowCount) {
+    lastThrowCount = player.throwCount
+    if (isInThrowZone(player.position.x, player.position.z)) {
+      state.yaw = player.facing + Math.PI + THROW_YAW_OFFSET
+      state.pitch = THROW_PITCH
+      state.distance = THROW_DISTANCE
+    }
   }
 
   const trackedStone = getTrackedStone()

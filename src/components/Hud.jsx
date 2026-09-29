@@ -1,9 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useGameStore } from '../store/useGameStore.js'
 import { inputState } from '../systems/input.js'
 import { authState, isAvailable, login, logout, purchase, inviteFriend } from '../systems/bloxity.js'
 import { settings } from '../systems/settingsState.js'
 import { useAuth, useSettings } from '../systems/bloxityHooks.js'
+import InteractPrompt from './InteractPrompt.jsx'
+import ActionResult from './ActionResult.jsx'
+import ActionPopups from './ActionPopups.jsx'
+import { actionResultState } from '../systems/actionResult.js'
+import { canAcceptRebirth, rebirthRequirement, levelProgress } from '../data/progression.js'
 
 const TUTORIAL_LEVEL = 20
 
@@ -249,18 +254,78 @@ function TopBar() {
   )
 }
 
+// Confirms the trade of current Skill for a rebirth rather than firing on a
+// single click. Ported from Age-every-click's RebirthWindow.
+function RebirthWindow({ onClose }) {
+  const skill = useGameStore((s) => s.skill)
+  const rebirths = useGameStore((s) => s.rebirths)
+  const acceptRebirth = useGameStore((s) => s.acceptRebirth)
+  const requirement = rebirthRequirement(rebirths)
+  const canRebirth = canAcceptRebirth(skill, rebirths)
+  const frac = Math.min(1, Math.max(0, skill / requirement))
+
+  return (
+    <div className="modal-backdrop" onWheel={(e) => e.stopPropagation()}>
+      <div className="modal">
+        <span className="modal-title outlined">Rebirth</span>
+        <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>
+          X
+        </button>
+        <div className="modal-body">
+          <div className="rebirth-arrow-row">
+            <span className="outlined rebirth-x">X{rebirths}</span>
+            <span className="outlined rebirth-arrow">▶</span>
+            <span className="outlined rebirth-x">X{rebirths + 1}</span>
+          </div>
+          <div className="outlined rebirth-warning">Rebirth resets your Skill and Level!</div>
+          <div className="rebirth-bar">
+            <div className="rebirth-bar-fill" style={{ width: `${(frac * 100).toFixed(2)}%` }} />
+            <span className="outlined rebirth-bar-label">
+              Skill {formatNumber(skill)}/{formatNumber(requirement)}
+            </span>
+          </div>
+          <button
+            type="button"
+            className="rebirth-confirm outlined"
+            disabled={!canRebirth}
+            onClick={() => {
+              acceptRebirth()
+              onClose()
+            }}
+          >
+            {canRebirth ? 'Rebirth' : `Skill ${formatNumber(requirement)} needed`}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Hud() {
   const skill = useGameStore((s) => s.skill)
   const level = useGameStore((s) => s.level)
-  const xp = useGameStore((s) => s.xp)
-  const xpNeeded = useGameStore((s) => s.xpNeeded)
   const rebirths = useGameStore((s) => s.rebirths)
   const wins = useGameStore((s) => s.wins)
   const multiplier = useGameStore((s) => s.multiplier)
   const friendBoost = useGameStore((s) => s.friendBoost)
-  const addSkill = useGameStore((s) => s.addSkill)
+  const grantSkill = useGameStore((s) => s.grantSkill)
+  const [rebirthOpen, setRebirthOpen] = useState(false)
+  const { into, span } = levelProgress(skill)
   const inThrowZone = useGameStore((s) => s.inThrowZone)
   const stoneReady = useGameStore((s) => s.stoneReady)
+
+  // systems/actionResult.js singleton, polled at ~10Hz; the id changes on every
+  // trigger so a repeated message still re-pops the popup.
+  const actionResultRef = useRef(null)
+  useEffect(() => {
+    let lastId = actionResultState.id
+    const id = setInterval(() => {
+      if (actionResultState.id === lastId) return
+      lastId = actionResultState.id
+      actionResultRef.current?.show(actionResultState.text, actionResultState.success)
+    }, 100)
+    return () => clearInterval(id)
+  }, [])
 
   const [showHint, setShowHint] = useState(true)
   useEffect(() => {
@@ -275,6 +340,9 @@ export default function Hud() {
   return (
     <div className="hud">
       <TopBar />
+      <InteractPrompt />
+      <ActionResult ref={actionResultRef} />
+      <ActionPopups />
       {showFps && <FpsCounter />}
 
       <div className="quest">
@@ -301,10 +369,15 @@ export default function Hud() {
       )}
 
       <div className="side-stats">
-        <div className="side-stat">
+        <button
+          type="button"
+          className={`side-stat rebirth-btn${canAcceptRebirth(skill, rebirths) ? ' ready' : ''}`}
+          aria-label="Rebirth"
+          onClick={() => setRebirthOpen(true)}
+        >
           <RebirthIcon />
           <span className="outlined stat-num stat-rebirth">{formatNumber(rebirths)}</span>
-        </div>
+        </button>
         <div className="side-stat">
           <TrophyIcon />
           <span className="outlined stat-num stat-wins">{formatNumber(wins)}</span>
@@ -321,14 +394,14 @@ export default function Hud() {
             <Bolt className="skill-bolt" />
             {formatNumber(skill)} SKILL
           </span>
-          <span className="mult outlined">x{multiplier} Multiplier</span>
+          <span className="mult outlined">x{multiplier * (rebirths + 1)} Multiplier</span>
         </div>
 
         <div className="levelbar">
-          <div className="levelbar-fill" style={{ width: `${(xp / xpNeeded) * 100}%` }} />
+          <div className="levelbar-fill" style={{ width: `${(into / span) * 100}%` }} />
           <span className="levelbar-level outlined">Level {level}</span>
           <span className="levelbar-xp outlined">
-            {xp} / {xpNeeded}
+            {into} / {span}
           </span>
         </div>
 
@@ -339,7 +412,7 @@ export default function Hud() {
               className={`boost ${b.className}`}
               onClick={async () => {
                 const result = await purchase(b.sku)
-                if (result?.success) addSkill(b.amount)
+                if (result?.success) grantSkill(b.amount)
               }}
             >
               <Bolt className="boost-bolt" />
@@ -352,6 +425,8 @@ export default function Hud() {
           ))}
         </div>
       </div>
+
+      {rebirthOpen && <RebirthWindow onClose={() => setRebirthOpen(false)} />}
     </div>
   )
 }
