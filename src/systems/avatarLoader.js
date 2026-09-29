@@ -1,125 +1,225 @@
-// Attaches a signed-in player's equipped Bloxity hat and back accessory (.obj
-// files from the CDN) to the game's own default character. Only the
-// accessories come from Bloxity: the base rig, body parts and skin are never
-// loaded, so the character itself is always the game's own
-// (systems/defaultCharacter.js). Framework-free (no React) so it can be
-// reused outside components/.
+// Dresses the game's Bloxity base rig (systems/defaultCharacter.js) with a
+// signed-in player's equipped cosmetics: skin texture, replaced body parts
+// (head/torso/arms/legs) and hat/back .obj items from the avatar CDN. Any
+// slot that 404s or fails to parse is skipped, leaving the rig's own default
+// mesh in place. Framework-free (no React) so it can be reused outside
+// components/.
 //
 // Same rule as systems/bloxity.js: nothing here may throw outward. A blocked
-// CDN or a failed accessory is logged and skipped, leaving the character
-// bare. Ported verbatim from Age-every-click's systems/avatarLoader.js.
+// CDN or a failed slot is logged and skipped. Approach ported from
+// Ice-Skate's systems/avatarModel.js, which targets the same base rig.
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js'
-import { TextureLoader, MeshStandardMaterial } from 'three'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import {
+  Color,
+  FrontSide,
+  MeshStandardMaterial,
+  NearestFilter,
+  NearestMipmapLinearFilter,
+  SRGBColorSpace,
+  TextureLoader,
+} from 'three'
 import { MATERIAL_PBR } from '../data/materials.js'
-import { RIG_HEIGHT } from '../data/bloxity.js'
+import { PROPORTIONS, RIG, RIG_HEIGHT, clamp } from '../data/bloxity.js'
+import { AVATAR_SLOTS, isEquipped, itemUrls, partUrl, skinUrl } from '../data/avatarCdn.js'
 import { player } from './playerState.js'
-import { hatObjUrl, hatTextureUrl, backObjUrl, backTextureUrl } from '../data/avatarCdn.js'
 
+const gltfLoader = new GLTFLoader()
 const objLoader = new OBJLoader()
 const textureLoader = new TextureLoader()
 
-function loadObj(url) {
-  return new Promise((resolve, reject) => objLoader.load(url, resolve, undefined, reject))
-}
-function loadTexture(url) {
-  return new Promise((resolve, reject) => textureLoader.load(url, resolve, undefined, reject))
-}
-
-function findSkeleton(root) {
-  let skeleton = null
+// The bundled player.glb shares one material between every clone of the base
+// rig, so painting a skin onto it would leak onto every other character.
+// Give this instance its own copies first; meshes that shared a material
+// keep sharing one (the rig's six body meshes all use a single `char`).
+function ownMaterials(root) {
+  const converted = new Map()
   root.traverse((o) => {
-    if (!skeleton && o.isSkinnedMesh) skeleton = o.skeleton
-  })
-  return skeleton
-}
-
-// defaultCharacter.js's rig is plain Bone objects wearing rigid (unskinned)
-// parts, not a SkinnedMesh, so findSkeleton() above finds nothing for it —
-// only a real loaded player.glb would have a skeleton. Falling back to a
-// direct bone-name search over `root` means headScale/neckHeight/
-// torsoScaleX still work against the rigid rig, not just `height`.
-function findBoneIn(root, namePattern) {
-  let found = null
-  root.traverse((o) => {
-    if (!found && o.isBone && namePattern.test(o.name)) found = o
-  })
-  return found
-}
-
-function findBone(skeleton, namePattern) {
-  return skeleton.bones.find((b) => namePattern.test(b.name)) || null
-}
-
-// Loads one hat/back accessory and clips it to `bone` (best-effort — the
-// SDK's exact hat/back attachment offset isn't documented, so the model is
-// added in the bone's local space as-is). Silently no-ops on a missing bone
-// or a failed load.
-async function attachAccessory(bone, objUrl, textureUrl) {
-  if (!objUrl || !bone) return
-  try {
-    const obj = await loadObj(objUrl)
-    let texture = null
-    if (textureUrl) {
-      try {
-        texture = await loadTexture(textureUrl)
-      } catch {
-        // Untextured accessory still reads better than skipping it outright.
-      }
+    if (!o.isMesh && !o.isSkinnedMesh) return
+    const source = Array.isArray(o.material) ? o.material[0] : o.material
+    if (!source) return
+    let own = converted.get(source.uuid)
+    if (!own) {
+      own = new MeshStandardMaterial({
+        map: source.map || null,
+        color: source.color ? source.color.clone() : new Color(0xffffff),
+        side: source.side ?? FrontSide,
+        transparent: !!source.transparent,
+        alphaTest: source.alphaTest || 0,
+        roughness: source.roughness ?? MATERIAL_PBR.PLAYER.roughness,
+        metalness: source.metalness ?? MATERIAL_PBR.PLAYER.metalness,
+        normalMap: source.normalMap || null,
+        roughnessMap: source.roughnessMap || null,
+        metalnessMap: source.metalnessMap || null,
+      })
+      converted.set(source.uuid, own)
     }
-    obj.traverse((o) => {
-      if (!o.isMesh) return
-      o.material = texture
-        ? new MeshStandardMaterial({ map: texture, ...MATERIAL_PBR.PLAYER })
-        : new MeshStandardMaterial({ color: '#cccccc', ...MATERIAL_PBR.PLAYER })
+    o.material = own
+  })
+}
+
+// Skins are pixel art and glTF UVs are not flipped, so a plain PNG has to
+// match the base rig's convention explicitly.
+function configureSkinTexture(texture) {
+  texture.flipY = false
+  texture.colorSpace = SRGBColorSpace
+  texture.magFilter = NearestFilter
+  texture.minFilter = NearestMipmapLinearFilter
+  texture.anisotropy = 1
+  return texture
+}
+
+function configureItemTexture(texture) {
+  texture.colorSpace = SRGBColorSpace
+  texture.magFilter = NearestFilter
+  texture.minFilter = NearestMipmapLinearFilter
+  texture.anisotropy = 1
+  return texture
+}
+
+async function applySkin(root, id) {
+  if (!isEquipped(id)) return
+  let texture
+  try {
+    texture = configureSkinTexture(await textureLoader.loadAsync(skinUrl(id)))
+  } catch {
+    return // keep the rig's embedded texture
+  }
+  root.traverse((o) => {
+    if (o.isSkinnedMesh && o.material) {
+      o.material.map = texture
+      o.material.needsUpdate = true
+    }
+  })
+}
+
+// The base rig ships six SkinnedMeshes (default_head, default_torso,
+// default_arm_L/R, default_leg_L/R) bound to one shared skeleton. Equipping a
+// part swaps *that mesh's geometry* in place, keeping its skeleton binding
+// and its (skin-painted) material — the part GLB's own material is dropped.
+// The part's skinIndex values are remapped bone-name-by-bone-name into the
+// base skeleton's order first, since its own export order usually differs.
+async function applyPart(root, slot, id) {
+  let gltf
+  try {
+    gltf = await gltfLoader.loadAsync(partUrl(slot, id))
+  } catch {
+    return // slot unavailable: the default_* mesh stays visible
+  }
+  const target = root.nodes[slot.replaces]
+  if (!target || !target.isSkinnedMesh) return
+
+  let skinnedSource = null
+  let plainSource = null
+  gltf.scene.traverse((o) => {
+    if (o.isSkinnedMesh && !skinnedSource) skinnedSource = o
+    else if (o.isMesh && !plainSource) plainSource = o
+  })
+  if (!skinnedSource && !plainSource) return
+
+  if (!skinnedSource) {
+    target.geometry = plainSource.geometry
+    return
+  }
+
+  const geometry = skinnedSource.geometry.clone()
+  if (skinnedSource.skeleton) {
+    const baseIndexByName = new Map()
+    target.skeleton.bones.forEach((bone, i) => baseIndexByName.set(bone.name, i))
+    const remap = new Map()
+    skinnedSource.skeleton.bones.forEach((bone, i) => {
+      const baseIndex = baseIndexByName.get(bone.name)
+      if (baseIndex !== undefined) remap.set(i, baseIndex)
     })
-    bone.add(obj)
+    const skinIndex = geometry.getAttribute('skinIndex')
+    if (skinIndex) {
+      const array = skinIndex.array
+      for (let i = 0; i < array.length; i += 1) {
+        const mapped = remap.get(array[i])
+        if (mapped !== undefined) array[i] = mapped
+      }
+      skinIndex.needsUpdate = true
+    }
+  }
+  target.geometry = geometry
+}
+
+async function applyItem(root, slot, id) {
+  const anchor = root.nodes[slot.attach]
+  if (!anchor) return
+  const urls = itemUrls(slot, id)
+  let object
+  try {
+    object = await objLoader.loadAsync(urls.mesh)
   } catch (err) {
-    console.warn('[avatarLoader] accessory failed to load', objUrl, err)
+    console.warn('[avatarLoader] accessory failed to load', urls.mesh, err)
+    return
+  }
+  let texture = null
+  try {
+    texture = configureItemTexture(await textureLoader.loadAsync(urls.texture))
+  } catch {
+    // An untextured accessory still reads better than skipping it outright.
+  }
+  object.traverse((o) => {
+    if (!o.isMesh) return
+    o.castShadow = true
+    o.material = new MeshStandardMaterial(
+      texture ? { map: texture, ...MATERIAL_PBR.PLAYER } : { color: '#cccccc', ...MATERIAL_PBR.PLAYER },
+    )
+  })
+  anchor.add(object)
+}
+
+// `equipped` is the shape SDK.avatar.getEquipped() returns. `root` is a
+// character from defaultCharacter.js, whose `nodes` map names every rig node.
+// `signal` (optional AbortSignal) lets a caller cancel a stale load.
+export async function attachEquippedAccessories(root, equipped, { signal } = {}) {
+  if (!root || !equipped) return
+  try {
+    ownMaterials(root)
+    await applySkin(root, equipped.skinId)
+    if (signal?.aborted) return
+    // Slots load in parallel; each one swallows its own failure.
+    await Promise.all(
+      AVATAR_SLOTS.filter((slot) => isEquipped(equipped[slot.key])).map((slot) =>
+        slot.kind === 'part' ? applyPart(root, slot, equipped[slot.key]) : applyItem(root, slot, equipped[slot.key]),
+      ),
+    )
+  } catch (err) {
+    console.warn('[avatarLoader] equipping avatar failed', err)
   }
 }
 
-// `equipped` is the shape SDK.avatar.getEquipped() returns; only hatId and
-// backId are read. `root` is a character from buildDefaultCharacter(), whose
-// `nodes` map holds the head (Neck1) and back (Spine1) bones. `signal`
-// (optional AbortSignal) lets a caller cancel a stale load.
-export async function attachEquippedAccessories(root, equipped, { signal } = {}) {
-  if (!root || !equipped) return
-  await attachAccessory(root.nodes?.Neck1, hatObjUrl(equipped.hatId), hatTextureUrl(equipped.hatId))
-  if (signal?.aborted) return
-  await attachAccessory(root.nodes?.Spine1, backObjUrl(equipped.backId), backTextureUrl(equipped.backId))
+function prop(proportions, key) {
+  const spec = PROPORTIONS[key]
+  const raw = Number(proportions?.[key])
+  return clamp(Number.isFinite(raw) ? raw : spec.def, spec.min, spec.max)
 }
 
 // Rescales an already-built character per SDK.avatar.getProportions(). Safe
 // to call repeatedly (e.g. from onProportionsChanged) since it only mutates
-// existing bone transforms, no reload needed.
-//
-// Only `height`, `headScale`, `neckHeight` and `torsoScaleX` are applied —
-// each maps to one bone this codebase can already name with reasonable
-// confidence (same head/spine patterns attachAccessory above uses).
-// `shoulderWidth`, `armLength` and `legOffsetX` are left untouched: they'd
-// need distinguishing the left/right bone of a symmetric pair, and the SDK
-// doesn't document that naming convention — guessing wrong would silently
-// warp the mesh, which is worse than the slider having no visible effect.
+// existing node transforms, no reload needed. A null `proportions` resets to
+// the defaults.
 export function applyProportions(root, proportions) {
-  if (!root || !proportions) return
+  if (!root) return
+  const n = root.nodes || {}
+  const p = {}
+  for (const key of Object.keys(PROPORTIONS)) p[key] = prop(proportions, key)
 
-  const height = Number.isFinite(proportions.height) ? proportions.height : 1
-  // Uniform scale: the rig ships at RIG_HEIGHT units tall (native bind
-  // pose), so this both converts it into the game's metres and applies the
-  // SDK's height multiplier in one step. A Y-only scale here would leave
-  // the rig at its raw ~6.4 units — about 3.5x the capsule's 1.8m — while
-  // only stretching it vertically on top of that.
-  root.scale.setScalar((player.dims.height / RIG_HEIGHT) * height)
+  if (n.ArmL_Offset) n.ArmL_Offset.position.x = RIG.armOffsetX * p.shoulderWidth
+  if (n.ArmR_Offset) n.ArmR_Offset.position.x = -RIG.armOffsetX * p.shoulderWidth
+  if (n.ArmL1) n.ArmL1.scale.y = p.armLength
+  if (n.ArmR1) n.ArmR1.scale.y = p.armLength
+  if (n.LegL_Offset) n.LegL_Offset.position.x = RIG.legOffsetX * p.legOffsetX
+  if (n.LegR_Offset) n.LegR_Offset.position.x = -RIG.legOffsetX * p.legOffsetX
+  if (n.Spine1) n.Spine1.scale.x = p.torsoScaleX
+  if (n.Neck_Offset) n.Neck_Offset.position.y = RIG.neckOffsetY * p.neckHeight
+  if (n.Neck1) n.Neck1.scale.setScalar(p.headScale)
 
-  const skeleton = findSkeleton(root)
-  const bone = (pattern) => (skeleton ? findBone(skeleton, pattern) : findBoneIn(root, pattern))
-
-  const head = bone(/head/i)
-  if (head) head.scale.setScalar(Number.isFinite(proportions.headScale) ? proportions.headScale : 1)
-
-  const neck = bone(/neck/i)
-  if (neck) neck.scale.y = Number.isFinite(proportions.neckHeight) ? proportions.neckHeight : 1
-
-  const torso = bone(/spine|chest|torso/i)
-  if (torso) torso.scale.x = Number.isFinite(proportions.torsoScaleX) ? proportions.torsoScaleX : 1
+  // Rig units -> metres uniformly (must not distort), then the portal's
+  // height proportion as a vertical stretch only — a taller character isn't
+  // proportionally wider, just taller.
+  const unitScale = player.dims.height / RIG_HEIGHT
+  root.scale.set(unitScale, unitScale * p.height, unitScale)
 }

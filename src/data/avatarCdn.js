@@ -10,7 +10,37 @@ const AVATAR_CDN = 'https://static.bloxity.io/avatars'
 // strings) / null for hats/back items — collapsed to one check so callers
 // don't need to know which sentinel a given slot uses.
 export function isEquipped(id) {
-  return id != null && id !== '-1' && id !== -1 && id !== '' && id !== 'undefined'
+  return id != null && id !== '-1' && id !== -1 && id !== '' && id !== 'undefined' && id !== 'null'
+}
+
+// Equipped-slot table, same shape as SDK.avatar.getEquipped(). `part` slots
+// swap the geometry of the matching default_* SkinnedMesh in the base rig;
+// `item` slots are extra .obj meshes parented to a bone.
+export const AVATAR_SLOTS = [
+  { key: 'headId', kind: 'part', type: 'head', replaces: 'default_head' },
+  { key: 'torsoId', kind: 'part', type: 'torso', replaces: 'default_torso' },
+  { key: 'armLId', kind: 'part', type: 'arms', side: 'L', replaces: 'default_arm_L' },
+  { key: 'armRId', kind: 'part', type: 'arms', side: 'R', replaces: 'default_arm_R' },
+  { key: 'legLId', kind: 'part', type: 'legs', side: 'L', replaces: 'default_leg_L' },
+  { key: 'legRId', kind: 'part', type: 'legs', side: 'R', replaces: 'default_leg_R' },
+  { key: 'hatId', kind: 'item', type: 'hats', attach: 'Neck1' },
+  { key: 'backId', kind: 'item', type: 'back', attach: 'Spine2' },
+]
+
+export function partUrl(slot, id) {
+  const suffix = slot.side ? `_${slot.side}` : ''
+  return `${AVATAR_CDN}/parts/${slot.type}/${id}${suffix}.glb`
+}
+
+export function itemUrls(slot, id) {
+  return {
+    mesh: `${AVATAR_CDN}/items/${slot.type}/${id}.obj`,
+    texture: `${AVATAR_CDN}/textures/${slot.type}/${id}.png`,
+  }
+}
+
+export function skinUrl(id) {
+  return `${AVATAR_CDN}/skins/${id}.png`
 }
 
 export function hatObjUrl(id) {
