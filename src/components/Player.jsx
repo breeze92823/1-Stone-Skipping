@@ -37,14 +37,18 @@ function useBloxityAvatar() {
 
   useEffect(() => {
     let cancelled = false
+    let generation = 0
     const controller = new AbortController()
 
     async function load() {
+      // The SDK fires twice per change (optimistic + confirmed); only the
+      // newest load may land, or a slower stale one could overwrite it.
+      const mine = ++generation
       const group = await loadBaseCharacter()
-      if (cancelled) return
+      if (cancelled || mine !== generation) return
       const equipped = signedIn && !DEV_MODE ? getEquippedAvatar() : null
       await attachEquippedAccessories(group, equipped, { signal: controller.signal })
-      if (cancelled) return
+      if (cancelled || mine !== generation) return
       currentRef.current = group
       applyProportions(group, getProportions())
       setAvatar(group)

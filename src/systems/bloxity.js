@@ -143,6 +143,7 @@ function onUser() {
   const SDK = sdk()
   const user = SDK ? SDK.auth.getUser() : null
   const generation = ++userGeneration
+  latestEquipped = null // a different account's equip event must not linger
 
   authState.ready = true
   authState.user = user
@@ -184,6 +185,18 @@ export function init() {
     registerSettings(SDK)
 
     unsubscribers.push(SDK.auth.onUserChanged(onUser))
+
+    if (typeof SDK.avatar?.onAvatarChanged === 'function') {
+      unsubscribers.push(
+        SDK.avatar.onAvatarChanged((equipped) => {
+          if (equipped && typeof equipped === 'object') latestEquipped = equipped
+          emitTo(avatarListeners)
+        }),
+      )
+    }
+    if (typeof SDK.avatar?.onProportionsChanged === 'function') {
+      unsubscribers.push(SDK.avatar.onProportionsChanged(() => emitTo(proportionListeners)))
+    }
 
     // 'chat_message_sent' and 'pointer_lock_changed' have no handler: this
     // game has no chat UI and doesn't use pointer lock (the camera is a
@@ -276,6 +289,9 @@ export function toggleCustomizer() {
 // systems/avatarLoader.js's attachEquippedAccessories(). Null when the SDK
 // is unavailable or the call throws, same as every other accessor here.
 export function getEquippedAvatar() {
+  // The SDK fires onAvatarChanged optimistically, before getEquipped() is
+  // guaranteed to reflect the change, so the event's own payload wins.
+  if (latestEquipped) return latestEquipped
   const SDK = sdk()
   if (!SDK) return null
   try {
@@ -285,17 +301,29 @@ export function getEquippedAvatar() {
   }
 }
 
-// Fires whenever the player changes anything in the avatar customizer, so
-// Player.jsx can reload accessories in place. No-op unsubscribe if the SDK
-// or this listener isn't available, so callers never need to branch.
-export function onAvatarChanged(fn) {
-  const SDK = sdk()
-  if (!SDK || typeof SDK.avatar.onAvatarChanged !== 'function') return () => {}
-  try {
-    return SDK.avatar.onAvatarChanged(fn)
-  } catch {
-    return () => {}
+// Avatar/proportion listeners are fanned out from one SDK subscription made
+// in init() (right after SDK.init), so a caller registering early or late
+// never misses a customizer change.
+let latestEquipped = null
+const avatarListeners = new Set()
+const proportionListeners = new Set()
+
+function emitTo(listeners) {
+  for (const fn of listeners) {
+    try {
+      fn()
+    } catch (err) {
+      console.warn('[bloxity] avatar listener threw', err)
+    }
   }
+}
+
+// Fires whenever the player changes anything in the avatar customizer (may
+// fire twice per change: optimistic, then server-confirmed — keep handlers
+// idempotent). Returns an unsubscribe.
+export function onAvatarChanged(fn) {
+  avatarListeners.add(fn)
+  return () => avatarListeners.delete(fn)
 }
 
 // { height, shoulderWidth, armLength, legOffsetX, torsoScaleX, neckHeight,
@@ -316,13 +344,8 @@ export function getProportions() {
 // auth: callers re-read via getProportions() instead of trusting a cached
 // value. No-op unsubscribe if the SDK or listener isn't available.
 export function onProportionsChanged(fn) {
-  const SDK = sdk()
-  if (!SDK || typeof SDK.avatar.onProportionsChanged !== 'function') return () => {}
-  try {
-    return SDK.avatar.onProportionsChanged(() => fn())
-  } catch {
-    return () => {}
-  }
+  proportionListeners.add(fn)
+  return () => proportionListeners.delete(fn)
 }
 
 // --- Social ---------------------------------------------------------------
