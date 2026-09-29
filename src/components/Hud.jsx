@@ -9,6 +9,7 @@ import EggPanel from './EggPanel.jsx'
 import PetBar from './PetBar.jsx'
 import LeftMenu from './LeftMenu.jsx'
 import { BOOSTS } from '../data/boosts.js'
+import { SHOW_ADDON } from '../data/world.js'
 import ActionResult from './ActionResult.jsx'
 import ActionPopups from './ActionPopups.jsx'
 import { formatNumber } from '../utils/formatNumber.js'
@@ -334,10 +335,12 @@ export default function Hud() {
           <TrophyIcon />
           <span className="outlined stat-num stat-wins">{formatNumber(wins)}</span>
         </div>
-        <div className="friend-boost">
-          <span className="outlined">Friend Boost +{friendBoost}%</span>
-          <PlusIcon />
-        </div>
+        {SHOW_ADDON && (
+          <div className="friend-boost">
+            <span className="outlined">Friend Boost +{friendBoost}%</span>
+            <PlusIcon />
+          </div>
+        )}
       </div>
 
       <div className="bottom">

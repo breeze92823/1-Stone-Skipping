@@ -138,7 +138,7 @@ export const EGGS = [
   { kind: 'rainbow', x: 15.6, z: -13.2, label: 'Rainbow Egg', rebirths: 10 },
 ]
 // VITE_SHOW_ADDON=true shows the add-on features (Featured Pet label, Claim Chest, Phoenix Relic,
-// Admin Abuse board); anything else hides them.
+// Admin Abuse board, HUD Friend Boost); anything else hides them.
 export const SHOW_ADDON = import.meta.env.VITE_SHOW_ADDON === 'true'
 export const FEATURED_PET = { x: 7, z: -20.5 }
 export const CLAIM_CHEST = { x: 21.5, z: -7.5 } // on the grass just SE of the egg plaza
