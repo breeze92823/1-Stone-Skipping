@@ -22,16 +22,16 @@ export const LEVEL_MIN = 1
 
 // Skill needed to go from `level` to `level + 1` (a single step, not cumulative).
 // Levels 1-19 and 20-24 are exact values from the real game. From 25 up there is
-// no data yet except 149->150 = 1,590,000, so the tail is an ESTIMATE: the +9 line
-// plus a small exponential term fitted through that point. Replace it (or add
-// table rows) as real values are confirmed.
+// no confirmed data, so the tail is an ESTIMATE: the +9 line plus an exponential
+// term scaled so the total Skill needed to reach level 149 is ~100,000,000.
+// Replace it (or add table rows) as real values are confirmed.
 const LEVEL_COSTS_EXACT = [
   ...Array(13).fill(10), // 1->2 .. 13->14
   12, 14, 15, 17, 19, 22, // 14->15 .. 19->20
   44, 53, 62, 71, 80, // 20->21 .. 24->25
 ]
 const TAIL_START = 20 // tail formula is anchored at level 20 (cost 44)
-const TAIL_EXP = 0.5
+const TAIL_EXP = 3.85085
 const TAIL_RATE = 0.1161
 
 export function levelCost(level) {
