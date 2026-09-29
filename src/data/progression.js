@@ -97,7 +97,9 @@ export function rebirthLevelsRequired(rebirth) {
 // Skill at which a Throw Zone stone reaches the Lake End Portal.
 export const PORTAL_SKILL = 1_000_000
 const REACH_FLOOR = 0.02 // a fresh player still skips a short way
-const WINS_MULT_MAX = 100 // extra wins multiplier at full reach
+const LAKE_WINS_LENGTH = 5000 // metres of lake that earn the full payout
+const LAKE_WINS_MAX = 25_000
+const LAKE_WINS_CURVE = 9 // higher = flatter start, steeper finish
 
 // 0..1 share of the canal a Throw Zone stone can cross, from Skill alone:
 // linear up to PORTAL_SKILL, where the stone reaches the portal.
@@ -105,9 +107,11 @@ export function canalReach(skill) {
   return Math.max(REACH_FLOOR, clamp(skill / PORTAL_SKILL, 0, 1))
 }
 
-// Wins per lake skip: 1x at no progress, WINS_MULT_MAX x at full reach.
-export function lakeWinsMultiplier(reach) {
-  return 1 + (WINS_MULT_MAX - 1) * reach * reach
+// Wins for a lake throw grow exponentially with the distance covered: short
+// throws pay little, and a nominal 5000 m lake pays LAKE_WINS_MAX.
+export function lakeWinsForDistance(metres) {
+  const f = clamp(metres / LAKE_WINS_LENGTH, 0, 1)
+  return Math.round((LAKE_WINS_MAX * (Math.exp(LAKE_WINS_CURVE * f) - 1)) / (Math.exp(LAKE_WINS_CURVE) - 1))
 }
 
 // Level is capped at the current rebirth's required level until you rebirth,

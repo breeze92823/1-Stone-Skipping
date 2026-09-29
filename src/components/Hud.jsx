@@ -5,6 +5,8 @@ import { authState, isAvailable, login, logout, purchase, inviteFriend } from '.
 import { settings } from '../systems/settingsState.js'
 import { useAuth, useSettings } from '../systems/bloxityHooks.js'
 import InteractPrompt from './InteractPrompt.jsx'
+import EggPanel from './EggPanel.jsx'
+import PetBar from './PetBar.jsx'
 import ActionResult from './ActionResult.jsx'
 import ActionPopups from './ActionPopups.jsx'
 import { formatNumber } from '../utils/formatNumber.js'
@@ -329,6 +331,8 @@ export default function Hud() {
     <div className="hud">
       <TopBar />
       <InteractPrompt />
+      <EggPanel />
+      <PetBar />
       <ActionResult ref={actionResultRef} />
       <ActionPopups />
       {showFps && <FpsCounter />}

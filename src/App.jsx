@@ -20,6 +20,7 @@ import Trees from './components/Trees.jsx'
 import Decor from './components/Decor.jsx'
 import GuideArrows from './components/GuideArrows.jsx'
 import Player from './components/Player.jsx'
+import RemotePlayers from './components/RemotePlayers.jsx'
 import ThrownStones from './components/ThrownStones.jsx'
 import Splashes from './components/Splashes.jsx'
 import Hud from './components/Hud.jsx'
@@ -80,6 +81,7 @@ export default function App() {
           <LoadingGate />
         </Suspense>
         <Player />
+        <RemotePlayers />
       </Canvas>
       <Hud />
     </>

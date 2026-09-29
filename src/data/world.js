@@ -98,9 +98,9 @@ const POOL_W = 6.5
 const FIRST_POOL_Z = 9
 export const POOLS = [
   { id: 'p1', mult: 1, rebirths: 0, len: 11, theme: 'lake' },
-  { id: 'p4', mult: 4, rebirths: 2, len: 14, theme: 'teal' },
-  { id: 'p10', mult: 10, rebirths: 4, len: 17, theme: 'purple' },
-  { id: 'p20', mult: 20, rebirths: 6, len: 19, theme: 'ice' },
+  { id: 'p4', mult: 4, rebirths: 3, signRebirths: 2, len: 14, theme: 'teal' },
+  { id: 'p10', mult: 10, rebirths: 5, signRebirths: 4, len: 17, theme: 'purple' },
+  { id: 'p20', mult: 20, rebirths: 7, signRebirths: 6, len: 19, theme: 'ice' },
   { id: 'p15', mult: 15, robux: 110, len: 21, theme: 'gold' },
   { id: 'p50', mult: 50, robux: 255, len: 23, theme: 'neon' },
 ].map((p, i) => ({ ...p, zc: FIRST_POOL_Z - i * POOL_PITCH, w: POOL_W }))

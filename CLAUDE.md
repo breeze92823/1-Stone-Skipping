@@ -20,6 +20,7 @@
 - One simulation tick: `components/GameLoop.jsx` runs player, camera, stones each frame.
 - Per-frame state (player, stones) is a mutated singleton in `systems/` (e.g. `playerState.js`, `stoneActions.js`), not zustand. Only infrequent HUD state goes in the store.
 - All Bloxity SDK calls go through `systems/bloxity.js`; it must never throw if the SDK is blocked.
+- All multiplayer (Colyseus) traffic goes through `systems/net.js` (server: `../Stone-Skipping-backend`); it must never block gameplay if the server is absent. Remote players render in `components/RemotePlayers.jsx`.
 - World units are metres. +X east, +Z south, Y up; default camera faces north.
 
 ## Working on landmarks / world placement

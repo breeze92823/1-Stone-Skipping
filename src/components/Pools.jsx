@@ -145,7 +145,7 @@ function Pool({ pool, textures }) {
     labelLines.push({ text: 'ALL WORLDS', size: 0.34, fill: '#ffffff' })
     labelLines.push({ parts: [{ icon: 'robux' }, { text: String(pool.robux) }], size: 0.62, pill: '#22252b', fill: '#ffffff' })
   } else {
-    labelLines.push({ parts: [{ icon: 'rebirth' }, { text: String(pool.rebirths) }], size: 0.62, pill: '#22252b', fill: '#ffffff' })
+    labelLines.push({ parts: [{ icon: 'rebirth' }, { text: String(pool.signRebirths ?? pool.rebirths) }], size: 0.62, pill: '#22252b', fill: '#ffffff' })
   }
   labelLines.push({ text: unlocked ? 'UNLOCKED' : 'LOCKED', size: 0.36, fill: unlocked ? '#3cff55' : '#ff2d2d' })
   labelLines.push({ text: `${pool.mult}x SKILL`, size: 0.78, fill: ['#ffffff', '#e9e4d2'] })

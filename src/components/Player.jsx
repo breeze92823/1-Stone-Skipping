@@ -118,7 +118,7 @@ export default function Player() {
       }
       const speed01 = Math.hypot(player.velocity.x, player.velocity.z) / player.moveSpeed
       updateGait(gait, Math.min(delta, 0.1), speed01, player.grounded)
-      updateThrow(gait, Math.min(delta, 0.1), inputState.moveLocked && player.atPad)
+      updateThrow(gait, Math.min(delta, 0.1), inputState.moveLocked && player.atPad && player.padUnlocked)
     }
     const held = heldStoneRef.current
     if (held) {

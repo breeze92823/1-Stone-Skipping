@@ -10,6 +10,7 @@ export const player = {
   facing: Math.PI, // yaw the character model faces, radians
   padTarget: null, // { x, z } centre of the throwing pad being walked to while locked
   atPad: false, // reached padTarget; the throw animation plays
+  padUnlocked: false, // the pad underfoot belongs to an unlocked pool (locked pads never animate)
   throwCount: 0, // bumped per THROW press; Player.jsx plays the throw once per bump
   throwing: false, // mid-throw: movement input is ignored until the follow-through ends
   handPos: null, // world position of the stone in hand (Player.jsx), or null if no hand

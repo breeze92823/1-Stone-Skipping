@@ -6,7 +6,7 @@ import { spawnActionPopup } from './actionPopups.js'
 import { terrainHeightAt, waterAt, isInsideCliffs } from './terrainHeight.js'
 import { useGameStore } from '../store/useGameStore.js'
 import { THROW_ONESHOT_TIME, THROW_RELEASE_DELAY } from './avatarAnim.js'
-import { canalReach, lakeWinsMultiplier } from '../data/progression.js'
+import { canalReach, lakeWinsForDistance } from '../data/progression.js'
 import { isPoolUnlocked, isInThrowZone, LAKE, LAKE_END, POOLS, poolInsetRect, SKILL_STONES, WATER_Y } from '../data/world.js'
 
 // The player's core action: throw the stone in hand and let it skip across
@@ -86,9 +86,10 @@ export function stepPickupAndThrow(camera, dt) {
   const poolId = pool ? pool.id : null
   if (poolId !== store.currentPoolId) {
     store.setCurrentPoolId(poolId)
-    if (poolId) {
-      // Parked on a throwing pad: playerMovement walks the player to its
-      // centre and turns them to the water; Space frees them.
+    if (poolId && isPoolUnlocked(pool, store.rebirths)) {
+      // Parked on an unlocked throwing pad: playerMovement walks the player to its
+      // centre and turns them to the water; Space frees them. Locked pads leave
+      // WASD and movement alone.
       setMoveLocked(true)
       const r = poolInsetRect(pool)
       player.padTarget = { x: (r.x0 + r.x1) / 2, z: (r.z0 + r.z1) / 2 }
@@ -109,9 +110,12 @@ export function stepPickupAndThrow(camera, dt) {
   // A press starts the throw animation; the stone itself leaves the hand
   // THROW_RELEASE_DELAY later, and the player stays planted until the
   // follow-through finishes.
+  // On a locked pad there is nothing to throw into: no animation at all.
+  const padLocked = !!pool && !isPoolUnlocked(pool, store.rebirths)
+  player.padUnlocked = !!pool && !padLocked
   if (inputState.throwPressed || autoThrow) {
     inputState.throwPressed = false
-    if (store.stoneReady && !pendingThrow && throwLock <= 0) {
+    if (!padLocked && store.stoneReady && !pendingThrow && throwLock <= 0) {
       if (autoThrow) {
         _dir.set(-1, 0, 0) // pads face west, toward the water
       } else if (nowInZone) {
@@ -166,12 +170,10 @@ function releaseStone({ dir, inZone }, store) {
     range: Infinity,
     runLength: fullRun,
     speedScale,
-    winMult: 1,
   }
   if (inZone) {
     stone.range = reach >= 1 ? Infinity : reach * fullRun
     stone.runLength = Math.min(stone.range, fullRun)
-    stone.winMult = lakeWinsMultiplier(reach)
   }
   thrownStones.push(stone)
   // Each throw from an unlocked training pool's pad earns that pool's
@@ -193,7 +195,7 @@ function settle(stone) {
   if (stone.sunk) return
   stone.sunk = true
   const store = useGameStore.getState()
-  if (stone.lake && stone.skips > 0) store.addWins(Math.round(stone.skips * stone.winMult))
+  if (stone.lake && stone.skips > 0) store.addWins(lakeWinsForDistance(Math.abs(stone.position.z - stone.startZ)))
   if (stone === trackedStone) {
     trackedStone = null
     reloadTimer = CAMERA_RETURN_TIME // the camera is now easing back to the player

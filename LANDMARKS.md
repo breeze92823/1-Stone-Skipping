@@ -76,9 +76,9 @@ each theme is in `THEMES` in that file.
 | Name | Multiplier | Unlock | Center z | Length | Theme / look |
 |---|---|---|---|---|---|
 | **1x Pool** (`p1`) | 1x | 0 rebirths (unlocked) | 9 | 11 | `lake`: sandy pond, wooden dock, rocks |
-| **4x Pool** (`p4`) | 4x | 2 rebirths | 1.5 | 14 | `teal` |
-| **10x Pool** (`p10`) | 10x | 4 rebirths | -6 | 17 | `purple`, with purple crystals on the rim |
-| **20x Pool** (`p20`) | 20x | 6 rebirths | -13.5 | 19 | `ice`: cream rim, blue platform |
+| **4x Pool** (`p4`) | 4x | 3 rebirths | 1.5 | 14 | `teal` |
+| **10x Pool** (`p10`) | 10x | 5 rebirths | -6 | 17 | `purple`, with purple crystals on the rim |
+| **20x Pool** (`p20`) | 20x | 7 rebirths | -13.5 | 19 | `ice`: cream rim, blue platform |
 | **15x Pool** (`p15`) | 15x | R$110 "ALL WORLDS" | -21 | 21 | `gold` |
 | **50x Pool** (`p50`) | 50x | R$255 "ALL WORLDS" | -28.5 | 23 | `neon`: black, green glow, circuit water |
 

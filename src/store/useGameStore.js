@@ -12,6 +12,7 @@ import {
   AUTO_REBIRTH,
   clamp,
 } from '../data/progression.js'
+import { MAX_EQUIPPED_PETS, petBonus } from '../systems/eggPanel.js'
 
 // Lightweight, infrequently-changing game state for the HUD. The thrown
 // stones' per-frame physics live in systems/stoneActions.js instead — that
@@ -59,7 +60,7 @@ export const useGameStore = create((set, get) => ({
     set((s) =>
       settle({
         ...s,
-        skill: clamp(s.skill + Math.floor(amount * s.multiplier * (s.rebirths + 1)), SKILL_MIN, skillCap(s.rebirths)),
+        skill: clamp(s.skill + Math.floor(amount * (s.multiplier + petBonus(s.equippedPets)) * (s.rebirths + 1)), SKILL_MIN, skillCap(s.rebirths)),
       }),
     ),
   // Flat grant (Bux boosts) — no multipliers.
@@ -78,6 +79,41 @@ export const useGameStore = create((set, get) => ({
         : { wins: s.wins - cost, ownedStones: [...s.ownedStones, id], equippedStone: id },
     ),
   equipStone: (id) => set((s) => (s.ownedStones.includes(id) ? { equippedStone: id } : s)),
+
+  // Applies a saved doc from the server (systems/net.js's `progress` message).
+  // Every field is re-validated, so a malformed doc can't corrupt the store.
+  hydrate: (d) =>
+    set((s) => {
+      const num = (v, fallback) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback)
+      const rebirths = clamp(Math.floor(num(d.rebirths, s.rebirths)), REBIRTH_MIN, REBIRTH_MAX)
+      const owned = Array.isArray(d.ownedStones) ? d.ownedStones.filter((id) => typeof id === 'string') : s.ownedStones
+      const ownedStones = owned.includes('pebble') ? owned : ['pebble', ...owned]
+      return derive({
+        ...s,
+        rebirths,
+        skill: clamp(num(d.skill, s.skill), SKILL_MIN, skillCap(rebirths)),
+        wins: Math.max(0, num(d.wins, s.wins)),
+        bestSkips: Math.max(0, num(d.bestSkips, s.bestSkips)),
+        ownedStones,
+        equippedStone: ownedStones.includes(d.equippedStone) ? d.equippedStone : 'pebble',
+      })
+    }),
+
+  // Pets: each is owned at most once, up to MAX_EQUIPPED_PETS equipped; equipped
+  // multipliers are added onto the skill multiplier (see addSkill).
+  ownedPets: [],
+  equippedPets: [],
+  autoHatch: false,
+  addPets: (names, cost) =>
+    set((s) => ({ wins: s.wins - cost, ownedPets: [...s.ownedPets, ...names.filter((n) => !s.ownedPets.includes(n))] })),
+  equipPet: (name) =>
+    set((s) =>
+      !s.ownedPets.includes(name) || s.equippedPets.includes(name) || s.equippedPets.length >= MAX_EQUIPPED_PETS
+        ? s
+        : { equippedPets: [...s.equippedPets, name] },
+    ),
+  unequipPet: (name) => set((s) => ({ equippedPets: s.equippedPets.filter((n) => n !== name) })),
+  setAutoHatch: (on) => set({ autoHatch: on }),
 
   // Manual, gated by canAcceptRebirth. Re-checks eligibility itself so a
   // duplicate/stale caller can never double-apply a rebirth.

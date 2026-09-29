@@ -9,8 +9,10 @@ import { SPAWN, SPAWN_FACING } from './data/world.js'
 import { thrownStones } from './systems/stoneActions.js'
 import { useGameStore } from './store/useGameStore.js'
 import { init as initBloxity } from './systems/bloxity.js'
+import { init as initNet } from './systems/net.js'
 
 initBloxity()
+initNet()
 resetPlayer(SPAWN, SPAWN_FACING)
 syncYawToPlayer()
 installInput()
