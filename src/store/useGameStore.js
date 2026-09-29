@@ -41,6 +41,7 @@ export const useGameStore = create((set, get) => ({
   friendBoost: 0,
 
   stoneReady: true, // a stone is in hand and can be thrown
+  avatarLoaded: false, // player character (incl. Bloxity accessories) finished loading; gates the loading screen
   skipCount: 0,
   bestSkips: 0,
   inThrowZone: false, // player is standing in the Throw Zone; shows the THROW prompt

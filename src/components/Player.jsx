@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Mesh, MeshStandardMaterial, Quaternion, SphereGeometry, Vector3 } from 'three'
 import { player } from '../systems/playerState.js'
-import { authState, getEquippedAvatar, getProportions, onAvatarChanged, onProportionsChanged } from '../systems/bloxity.js'
+import { authState, getEquippedAvatar, getProportions, onAvatarChanged, onProportionsChanged, subscribeAuth } from '../systems/bloxity.js'
 import { DEV_MODE } from '../data/bloxity.js'
 import { applyProportions, attachEquippedAccessories } from '../systems/avatarLoader.js'
 import { buildDefaultCharacter, loadBaseCharacter, HELD_ITEM_OFFSET } from '../systems/defaultCharacter.js'
@@ -48,8 +48,15 @@ function useBloxityAvatar() {
       currentRef.current = group
       applyProportions(group, getProportions())
       setAvatar(group)
+      // Only count it once auth has settled, so the signed-in accessory
+      // load (not the pre-auth bare one) is what releases the loading screen.
+      if (authState.ready) useGameStore.setState({ avatarLoaded: true })
     }
     load()
+    // Signed-out case: no reload follows auth settling, so release here.
+    const offAuth = subscribeAuth((s) => {
+      if (s.ready && !authState.user && currentRef.current) useGameStore.setState({ avatarLoaded: true })
+    })
 
     const offAvatar = onAvatarChanged(() => load())
     const offProportions = onProportionsChanged(() => {
@@ -61,6 +68,7 @@ function useBloxityAvatar() {
       controller.abort()
       offAvatar()
       offProportions()
+      offAuth()
     }
   }, [signedIn])
 

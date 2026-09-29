@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { subscribeAuth } from '../systems/bloxity.js'
 import { DEV_MODE } from '../data/bloxity.js'
+import { useGameStore } from '../store/useGameStore.js'
 
 // Full-screen DOM overlay, a sibling of <Canvas> in App.jsx. Stays fully
 // opaque until the 3D scene has resolved (sceneReady) AND Bloxity auth has
@@ -13,7 +14,9 @@ export default function LoadingScreen({ sceneReady }) {
 
   useEffect(() => subscribeAuth((s) => setAuthReady(s.ready)), [])
 
-  const ready = sceneReady && authReady
+  const avatarLoaded = useGameStore((s) => s.avatarLoaded)
+
+  const ready = sceneReady && authReady && avatarLoaded
 
   useEffect(() => {
     if (!ready) return
@@ -29,7 +32,7 @@ export default function LoadingScreen({ sceneReady }) {
       <div className="loading-bar">
         <div className="loading-bar-fill" />
       </div>
-      <div className="loading-status">{sceneReady ? 'SIGNING IN…' : 'LOADING WORLD…'}</div>
+      <div className="loading-status">{sceneReady ? (authReady ? 'LOADING CHARACTER…' : 'SIGNING IN…') : 'LOADING WORLD…'}</div>
     </div>
   )
 }
