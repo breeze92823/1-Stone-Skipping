@@ -358,25 +358,27 @@ export default function Hud() {
           <span className="levelbar-xp outlined">{maxLevel ? 'MAX Level' : `${formatNumber(into)} / ${formatNumber(span)}`}</span>
         </div>
 
-        <div className="boosts">
-          {BOOSTS.map((b) => (
-            <button
-              key={b.label}
-              className={`boost ${b.className}`}
-              onClick={async () => {
-                const result = await purchase(b.sku)
-                if (result?.success) grantSkill(b.amount)
-              }}
-            >
-              <Bolt className="boost-bolt" />
-              <span className="outlined boost-label">{b.label}</span>
-              <span className="boost-cost">
-                <RobuxHex />
-                <span className="outlined">{b.cost}</span>
-              </span>
-            </button>
-          ))}
-        </div>
+        {SHOW_ADDON && (
+          <div className="boosts">
+            {BOOSTS.map((b) => (
+              <button
+                key={b.label}
+                className={`boost ${b.className}`}
+                onClick={async () => {
+                  const result = await purchase(b.sku)
+                  if (result?.success) grantSkill(b.amount)
+                }}
+              >
+                <Bolt className="boost-bolt" />
+                <span className="outlined boost-label">{b.label}</span>
+                <span className="boost-cost">
+                  <RobuxHex />
+                  <span className="outlined">{b.cost}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {rebirthOpen && <RebirthWindow onClose={() => setRebirthOpen(false)} spotlight={tutorialStep === 4} />}
