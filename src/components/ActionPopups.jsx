@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { actionPopupPool } from '../systems/actionPopups.js'
+import { formatNumber } from '../utils/formatNumber.js'
 import {
   ACTION_POPUP_POOL_SIZE,
   ACTION_POPUP_LIFETIME,
@@ -56,7 +57,7 @@ export default function ActionPopups() {
 
         if (drawnSeq[i] !== slot.seq) {
           drawnSeq[i] = slot.seq
-          node.lastElementChild.textContent = `+${slot.amount}`
+          node.lastElementChild.textContent = `+${formatNumber(slot.amount)}`
           node.style.display = ''
         }
 

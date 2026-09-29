@@ -1,10 +1,12 @@
 import { Vector3 } from 'three'
 import { inputState, setMoveLocked } from './input.js'
 import { player } from './playerState.js'
+import { spawnSplash } from './splashes.js'
 import { spawnActionPopup } from './actionPopups.js'
 import { terrainHeightAt, waterAt, isInsideCliffs } from './terrainHeight.js'
 import { useGameStore } from '../store/useGameStore.js'
 import { THROW_ONESHOT_TIME, THROW_RELEASE_DELAY } from './avatarAnim.js'
+import { canalReach, lakeWinsMultiplier } from '../data/progression.js'
 import { isPoolUnlocked, isInThrowZone, LAKE, LAKE_END, POOLS, poolInsetRect, SKILL_STONES, WATER_Y } from '../data/world.js'
 
 // The player's core action: throw the stone in hand and let it skip across
@@ -37,15 +39,24 @@ const MIN_BOUNCE_SPEED = 2.5 // m/s below which a stone just sinks instead
 const MAX_SHALLOW_ANGLE = 0.55 // rad (~31deg); steeper impacts sink instead of skip
 const MAX_SKIPS = 12
 const RELOAD_TIME = 0.45 // s before the next stone is in hand
+const CAMERA_RETURN_TIME = 0.8 // s after a tracked stone lands for the camera to ease back to the player
 
-// Throws from the Throw Zone always skip the whole canal and land on the
-// end beach: aimed at the beach, constant horizontal speed, and every lake skip
-// rebounds with the same vertical speed (no damping, drag or skip cap).
-// Hop length = speed * 2 * LAKE_HOP_VY / -GRAVITY (~90 m), so ~50 skips.
-const LAKE_THROW_SPEED = 300 // m/s horizontal, ~37 s to cross the canal
-const LAKE_HOP_VY = 6 // m/s up after each lake skip; peaks ~1.1 m, clears the beach lip
+// Throws from the Throw Zone skip the canal like a real stone: the first hops are
+// fast and high, then speed and hop height both fade steadily over the stone's
+// range (set by Skill, see canalReach) until it is barely ticking along the water.
+// Hop length = speed * 2 * vy / -GRAVITY, so hops shorten as the stone tires.
+const LAKE_THROW_SPEED = 200 // m/s horizontal at release and on the first hops
+const LAKE_HOP_VY = 13.9 // m/s up after the first lake skip; peaks ~6 m
+const LAKE_FADE_END = 0.5 // fraction of speed/hop height left at the end of the run, where the stone stops
+const LAKE_MIN_SPEED_SCALE = 0.3 // floor on the speed/hop scale for the shortest canal runs
 const LAKE_AIM_MARGIN = 3 // m kept off the canal's side banks when aiming
 const BEACH_AIM_Z = LAKE.maxZ - LAKE_END.depth / 2
+
+// 1 at the start of a canal run, easing down to LAKE_FADE_END as the stone
+// covers its full range `runLength`; the run ends (stone stops in the water) at LAKE_FADE_END.
+function lakeFade(dist, runLength) {
+  return 1 - (1 - LAKE_FADE_END) * Math.min(Math.max(dist / runLength, 0), 1)
+}
 
 const _dir = new Vector3()
 let reloadTimer = 0
@@ -85,7 +96,7 @@ export function stepPickupAndThrow(camera, dt) {
     }
   }
 
-  if (!store.stoneReady) {
+  if (!store.stoneReady && !trackedStone) {
     reloadTimer -= dt
     if (reloadTimer <= 0) store.reloadStone()
   }
@@ -132,7 +143,11 @@ export function stepPickupAndThrow(camera, dt) {
 }
 
 function releaseStone({ dir, inZone }, store) {
-  const speed = inZone ? LAKE_THROW_SPEED : throwSpeed(store.skill)
+  const fullRun = LAKE.maxZ - LAKE.minZ
+  const reach = inZone ? canalReach(store.skill) : 1
+  // Short canal runs travel slower (and hop lower) so the stone doesn't rocket across a short distance.
+  const speedScale = inZone ? Math.max(LAKE_MIN_SPEED_SCALE, Math.sqrt(Math.min(reach, 1))) : 1
+  const speed = inZone ? LAKE_THROW_SPEED * speedScale : throwSpeed(store.skill)
   const vy = speed * Math.sin(THROW_UP_ANGLE)
   const vh = speed * Math.cos(THROW_UP_ANGLE)
   const hand = player.handPos
@@ -146,7 +161,17 @@ function releaseStone({ dir, inZone }, store) {
     skips: 0,
     pool: null,
     lake: false,
-    lakeRun: inZone, // guaranteed canal crossing (see LAKE_THROW_SPEED)
+    lakeRun: inZone, // canal run (see LAKE_THROW_SPEED), cut short by `range` below full reach
+    startZ: position.z,
+    range: Infinity,
+    runLength: fullRun,
+    speedScale,
+    winMult: 1,
+  }
+  if (inZone) {
+    stone.range = reach >= 1 ? Infinity : reach * fullRun
+    stone.runLength = Math.min(stone.range, fullRun)
+    stone.winMult = lakeWinsMultiplier(reach)
   }
   thrownStones.push(stone)
   // Each throw from an unlocked training pool's pad earns that pool's
@@ -168,8 +193,11 @@ function settle(stone) {
   if (stone.sunk) return
   stone.sunk = true
   const store = useGameStore.getState()
-  if (stone.lake && stone.skips > 0) store.addWins(stone.skips)
-  if (stone === trackedStone) trackedStone = null
+  if (stone.lake && stone.skips > 0) store.addWins(Math.round(stone.skips * stone.winMult))
+  if (stone === trackedStone) {
+    trackedStone = null
+    reloadTimer = CAMERA_RETURN_TIME // the camera is now easing back to the player
+  }
 }
 
 // Integrates every in-flight stone, bounces it off water when the impact is
@@ -191,15 +219,27 @@ export function stepStones(dt) {
       if (water.pool) stone.pool = water.pool
       if (water.lake) stone.lake = true
 
-      const lakeRun = stone.lakeRun && water.lake
+      const outOfRange = Math.abs(z - stone.startZ) >= stone.range
+      const lakeRun = stone.lakeRun && water.lake && !outOfRange
       const speed = stone.velocity.length()
       const angle = Math.atan2(-stone.velocity.y, Math.hypot(stone.velocity.x, stone.velocity.z))
-      const canSkip = lakeRun || (angle < MAX_SHALLOW_ANGLE && speed > MIN_BOUNCE_SPEED && stone.skips < MAX_SKIPS)
+      const canSkip = lakeRun || (!(stone.lakeRun && water.lake) && angle < MAX_SHALLOW_ANGLE && speed > MIN_BOUNCE_SPEED && stone.skips < MAX_SKIPS)
+
+      // Sinking stones make a big splash, skips a lighter one.
+      spawnSplash(x, water.y, z, canSkip ? 0.6 : 1.4)
 
       if (canSkip) {
         stone.position.y = water.y
         if (lakeRun) {
-          stone.velocity.y = LAKE_HOP_VY
+          // Speed and hop height fade together with the distance covered.
+          const fade = lakeFade(Math.abs(z - stone.startZ), stone.runLength)
+          stone.velocity.y = LAKE_HOP_VY * stone.speedScale * fade
+          const vh = Math.hypot(stone.velocity.x, stone.velocity.z)
+          if (vh > 0) {
+            const k = (LAKE_THROW_SPEED * stone.speedScale * fade) / vh
+            stone.velocity.x *= k
+            stone.velocity.z *= k
+          }
         } else {
           stone.velocity.y = -stone.velocity.y * BOUNCE_DAMPING
           stone.velocity.x *= DRAG_PER_BOUNCE

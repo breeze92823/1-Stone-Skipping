@@ -21,6 +21,7 @@ import Decor from './components/Decor.jsx'
 import GuideArrows from './components/GuideArrows.jsx'
 import Player from './components/Player.jsx'
 import ThrownStones from './components/ThrownStones.jsx'
+import Splashes from './components/Splashes.jsx'
 import Hud from './components/Hud.jsx'
 
 const SKY = { top: '#6fbdf2', mid: '#b4def8', bottom: '#def0fb' }
@@ -75,6 +76,7 @@ export default function App() {
           <Decor />
           <GuideArrows />
           <ThrownStones />
+          <Splashes />
           <LoadingGate />
         </Suspense>
         <Player />

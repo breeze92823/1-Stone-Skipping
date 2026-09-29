@@ -7,8 +7,9 @@ import { useAuth, useSettings } from '../systems/bloxityHooks.js'
 import InteractPrompt from './InteractPrompt.jsx'
 import ActionResult from './ActionResult.jsx'
 import ActionPopups from './ActionPopups.jsx'
+import { formatNumber } from '../utils/formatNumber.js'
 import { actionResultState } from '../systems/actionResult.js'
-import { canAcceptRebirth, rebirthRequirement, levelProgress } from '../data/progression.js'
+import { canAcceptRebirth, rebirthLevelsRequired, levelForSkill, levelProgress } from '../data/progression.js'
 
 const TUTORIAL_LEVEL = 20
 
@@ -22,21 +23,6 @@ const BOOSTS = [
   { label: '+1M', amount: 1_000_000, cost: 55, className: 'boost-rainbow', sku: 'skill_boost_1m' },
 ]
 
-function formatNumber(n) {
-  const units = [
-    [1e12, 'T'],
-    [1e9, 'B'],
-    [1e6, 'M'],
-    [1e3, 'K'],
-  ]
-  for (const [v, u] of units) {
-    if (n >= v) {
-      const x = n / v
-      return `${x >= 100 ? Math.floor(x) : Math.floor(x * 10) / 10}${u}`
-    }
-  }
-  return String(Math.floor(n))
-}
 
 const Bolt = ({ className }) => (
   <svg className={className} viewBox="0 0 24 36" aria-hidden="true">
@@ -260,9 +246,10 @@ function RebirthWindow({ onClose }) {
   const skill = useGameStore((s) => s.skill)
   const rebirths = useGameStore((s) => s.rebirths)
   const acceptRebirth = useGameStore((s) => s.acceptRebirth)
-  const requirement = rebirthRequirement(rebirths)
+  const requirement = rebirthLevelsRequired(rebirths)
+  const level = levelForSkill(skill)
   const canRebirth = canAcceptRebirth(skill, rebirths)
-  const frac = Math.min(1, Math.max(0, skill / requirement))
+  const frac = Math.min(1, Math.max(0, level / requirement))
 
   return (
     <div className="modal-backdrop" onWheel={(e) => e.stopPropagation()}>
@@ -281,7 +268,7 @@ function RebirthWindow({ onClose }) {
           <div className="rebirth-bar">
             <div className="rebirth-bar-fill" style={{ width: `${(frac * 100).toFixed(2)}%` }} />
             <span className="outlined rebirth-bar-label">
-              Skill {formatNumber(skill)}/{formatNumber(requirement)}
+              Level {formatNumber(level)}/{formatNumber(requirement)}
             </span>
           </div>
           <button
@@ -293,7 +280,7 @@ function RebirthWindow({ onClose }) {
               onClose()
             }}
           >
-            {canRebirth ? 'Rebirth' : `Skill ${formatNumber(requirement)} needed`}
+            {canRebirth ? 'Rebirth' : `Level ${formatNumber(requirement)} needed`}
           </button>
         </div>
       </div>
@@ -311,6 +298,7 @@ export default function Hud() {
   const grantSkill = useGameStore((s) => s.grantSkill)
   const [rebirthOpen, setRebirthOpen] = useState(false)
   const { into, span } = levelProgress(skill)
+  const maxLevel = level >= rebirthLevelsRequired(rebirths)
   const inThrowZone = useGameStore((s) => s.inThrowZone)
   const stoneReady = useGameStore((s) => s.stoneReady)
 
@@ -356,10 +344,9 @@ export default function Hud() {
         <div className="controls-hint">WASD move · Space jump · Right-drag camera</div>
       )}
 
-      {inThrowZone && (
+      {inThrowZone && stoneReady && (
         <button
           className="throw-btn"
-          disabled={!stoneReady}
           onClick={() => {
             inputState.throwPressed = true
           }}
@@ -394,15 +381,13 @@ export default function Hud() {
             <Bolt className="skill-bolt" />
             {formatNumber(skill)} SKILL
           </span>
-          <span className="mult outlined">x{multiplier * (rebirths + 1)} Multiplier</span>
+          <span className="mult outlined">x{multiplier * rebirths} Multiplier</span>
         </div>
 
         <div className="levelbar">
-          <div className="levelbar-fill" style={{ width: `${(into / span) * 100}%` }} />
-          <span className="levelbar-level outlined">Level {level}</span>
-          <span className="levelbar-xp outlined">
-            {into} / {span}
-          </span>
+          <div className="levelbar-fill" style={{ width: `${maxLevel ? 100 : (into / span) * 100}%` }} />
+          <span className="levelbar-level outlined">Level {formatNumber(level)}</span>
+          <span className="levelbar-xp outlined">{maxLevel ? 'MAX Level' : `${formatNumber(into)} / ${formatNumber(span)}`}</span>
         </div>
 
         <div className="boosts">

@@ -2,12 +2,14 @@ import { create } from 'zustand'
 import {
   SKILL_INITIAL,
   SKILL_MIN,
-  SKILL_MAX,
   REBIRTH_INITIAL,
+  skillCap,
+  WINS_INITIAL,
   REBIRTH_MIN,
   REBIRTH_MAX,
   levelForSkill,
   canAcceptRebirth,
+  AUTO_REBIRTH,
   clamp,
 } from '../data/progression.js'
 
@@ -21,11 +23,19 @@ function derive(state) {
   return { ...state, level: levelForSkill(state.skill) }
 }
 
+// derive() plus the VITE_AUTO_REBIRTH step: at the level cap, rebirth at once.
+function settle(state) {
+  if (AUTO_REBIRTH && canAcceptRebirth(state.skill, state.rebirths)) {
+    return derive({ ...state, rebirths: clamp(state.rebirths + 1, REBIRTH_MIN, REBIRTH_MAX), skill: SKILL_MIN })
+  }
+  return derive(state)
+}
+
 export const useGameStore = create((set, get) => ({
-  skill: SKILL_INITIAL,
-  level: levelForSkill(SKILL_INITIAL),
+  skill: Math.min(SKILL_INITIAL, skillCap(REBIRTH_INITIAL)),
+  level: levelForSkill(Math.min(SKILL_INITIAL, skillCap(REBIRTH_INITIAL))),
   rebirths: REBIRTH_INITIAL,
-  wins: 0,
+  wins: WINS_INITIAL,
   multiplier: 1,
   friendBoost: 0,
 
@@ -47,13 +57,14 @@ export const useGameStore = create((set, get) => ({
   // rebirth bonus Age-every-click applies to each click.
   addSkill: (amount) =>
     set((s) =>
-      derive({
+      settle({
         ...s,
-        skill: clamp(s.skill + Math.floor(amount * s.multiplier * (s.rebirths + 1)), SKILL_MIN, SKILL_MAX),
+        skill: clamp(s.skill + Math.floor(amount * s.multiplier * s.rebirths), SKILL_MIN, skillCap(s.rebirths)),
       }),
     ),
   // Flat grant (Bux boosts) — no multipliers.
-  grantSkill: (amount) => set((s) => derive({ ...s, skill: clamp(s.skill + amount, SKILL_MIN, SKILL_MAX) })),
+  grantSkill: (amount) =>
+    set((s) => settle({ ...s, skill: clamp(s.skill + amount, SKILL_MIN, skillCap(s.rebirths)) })),
   addWins: (amount) => set((s) => ({ wins: s.wins + amount })),
 
   // Skill Stones yard: wins are spent to own a stone, one stone is equipped.
@@ -77,7 +88,7 @@ export const useGameStore = create((set, get) => ({
       derive({
         ...s,
         rebirths: clamp(s.rebirths + 1, REBIRTH_MIN, REBIRTH_MAX),
-        skill: SKILL_INITIAL,
+        skill: SKILL_MIN, // the env starting grant applies once, not on every rebirth
       }),
     )
   },
