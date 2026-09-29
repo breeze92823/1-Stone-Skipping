@@ -29,6 +29,7 @@ import {
   PROGRESS_RESEND_DEBOUNCE_MS,
   MOVE_SEND_INTERVAL_MS,
   USERNAME_WAIT_MS,
+  PROGRESS_KNOWN_TIMEOUT_MS,
 } from '../data/net.js'
 
 // --- Public state -----------------------------------------------------------
@@ -133,7 +134,8 @@ function statsPayload() {
 }
 
 function progressPayload() {
-  return { ...statsPayload(), ownedStones: [...useGameStore.getState().ownedStones] }
+  const s = useGameStore.getState()
+  return { ...statsPayload(), ownedStones: [...s.ownedStones], tutorialStep: s.tutorialStep }
 }
 
 // The ROOM decides whether this session may persist (its userIds map), so a
@@ -152,7 +154,7 @@ let lastSnap = ''
 
 // useGameStore.subscribe fires on ANY change, so filter to the fields we send.
 function onStoreChange(s) {
-  const snap = JSON.stringify([s.skill, s.wins, s.rebirths, s.bestSkips, s.equippedStone, s.ownedStones.length])
+  const snap = JSON.stringify([s.skill, s.wins, s.rebirths, s.bestSkips, s.equippedStone, s.ownedStones.length, s.tutorialStep])
   if (snap === lastSnap) return
   lastSnap = snap
   if (!statsTimer) {
@@ -356,6 +358,8 @@ function attachRoom(joined) {
     hydratedFromServer = true
     useGameStore.getState().hydrate(msg)
   })
+  // A brand-new account has no save: nothing to hydrate, start onboarding now.
+  room.onMessage('noProgress', () => useGameStore.getState().setProgressKnown())
   room.onMessage('leaderboard', (msg) => {
     globalLeaderboard = msg || EMPTY_BOARDS
     emit()
@@ -422,9 +426,16 @@ export function init() {
   if (started) return
   started = true
   stopped = false
-  // No server configured for this build: stay 'idle' forever. Every export
-  // below already no-ops without a room.
-  if (!SERVER_URL) return
+  // Ceiling on the new-vs-returning signal: covers a signed-in player whose
+  // join or save lookup is slow. Bounded so a genuinely new player's tutorial
+  // never stalls on a cold host boot.
+  setTimeout(() => useGameStore.getState().setProgressKnown(), PROGRESS_KNOWN_TIMEOUT_MS)
+  // No server configured for this build: stay 'idle' forever, and there is no
+  // save to wait for. Every export below already no-ops without a room.
+  if (!SERVER_URL) {
+    useGameStore.getState().setProgressKnown()
+    return
+  }
 
   offStore ||= useGameStore.subscribe(onStoreChange)
   // subscribeAuth also fires on friends/balance loads; sendIdentityNow()'s own
@@ -435,6 +446,9 @@ export function init() {
   offAvatarChanged ||= onAvatarChanged(() => sendAvatarNow())
   offProportionsChanged ||= onProportionsChanged(() => sendAvatarNow())
   waitForAuth(USERNAME_WAIT_MS).then(() => {
+    // A confirmed guest never has a save to load (the server only loads one
+    // for a signed-in userId) — no need to ride out the full timeout.
+    if (!getStableUserId()) useGameStore.getState().setProgressKnown()
     if (!stopped) connect()
   })
 }

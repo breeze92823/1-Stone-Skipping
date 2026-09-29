@@ -259,6 +259,10 @@ export default function Hud() {
     else if (tutorialStep === 4 && rebirths >= 1) setTutorialStep(5)
   }, [tutorialStep, skill, wins, equippedStone, level, rebirths, setTutorialStep])
   const questDone = tutorialStep === 5
+  // Hidden until we know whether a save exists (so a returning player never
+  // sees step 0 flash), and not replayed when the loaded save was already done.
+  const progressKnown = useGameStore((s) => s.progressKnown)
+  const resumedDone = useGameStore((s) => s.tutorialResumedDone)
   // Once complete the banner lingers 10 s, pops out, then unmounts.
   const [bannerPhase, setBannerPhase] = useState('show') // 'show' | 'leaving' | 'gone'
   useEffect(() => {
@@ -283,7 +287,7 @@ export default function Hud() {
       <ActionPopups />
       {showFps && <FpsCounter />}
 
-      {bannerPhase !== 'gone' && (
+      {progressKnown && !resumedDone && bannerPhase !== 'gone' && (
       <div className={`quest${bannerPhase === 'leaving' ? ' quest-leaving' : ''}`}>
         <div className="quest-tag outlined">{questDone ? 'COMPLETE' : 'TUTORIAL'}</div>
         <div className="quest-text outlined">

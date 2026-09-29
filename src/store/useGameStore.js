@@ -49,6 +49,16 @@ export const useGameStore = create((set, get) => ({
 
   tutorialStep: 0, // 0 skills, 1 wins, 2 equip +3 stone, 3 level 20, 4 rebirth, 5 done; only ever advances (Hud.jsx)
   setTutorialStep: (step) => set({ tutorialStep: step }),
+  // Whether we know if this player already has a save (systems/net.js): true
+  // once the server's `progress`/`noProgress` reply arrives, or once we've
+  // concluded there is nothing to wait for (guest, no server, timeout). The
+  // tutorial UI stays hidden until then, so a returning player never sees it
+  // flash at step 0 before their saved step hydrates.
+  progressKnown: false,
+  setProgressKnown: () => set((s) => (s.progressKnown ? s : { progressKnown: true })),
+  // True when the tutorial was already complete in the loaded save, so the
+  // 'TUTORIAL COMPLETE' banner isn't replayed on every visit (Hud.jsx).
+  tutorialResumedDone: false,
 
   setCurrentPoolId: (id) => set({ currentPoolId: id }),
   throwStone: () => set({ stoneReady: false, skipCount: 0 }),
@@ -91,8 +101,14 @@ export const useGameStore = create((set, get) => ({
       const rebirths = clamp(Math.floor(num(d.rebirths, s.rebirths)), REBIRTH_MIN, REBIRTH_MAX)
       const owned = Array.isArray(d.ownedStones) ? d.ownedStones.filter((id) => typeof id === 'string') : s.ownedStones
       const ownedStones = owned.includes('pebble') ? owned : ['pebble', ...owned]
+      // Only ever moves forward, so a stale save can't drag a player back.
+      const savedStep = Math.min(5, Math.max(0, Math.floor(num(d.tutorialStep, 0))))
+      const tutorialStep = Math.max(s.tutorialStep, savedStep)
       return derive({
         ...s,
+        tutorialStep,
+        tutorialResumedDone: s.tutorialResumedDone || (tutorialStep === 5 && s.tutorialStep < 5),
+        progressKnown: true,
         rebirths,
         skill: clamp(num(d.skill, s.skill), SKILL_MIN, skillCap(rebirths)),
         wins: Math.max(0, num(d.wins, s.wins)),

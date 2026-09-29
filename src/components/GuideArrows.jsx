@@ -39,8 +39,8 @@ export default function GuideArrows() {
     if (!mesh) return
     // Tutorial step picks the target: pool pad, throw zone, +3 stone, pool pad
     // again, then no trail (rebirth and done).
-    const step = useGameStore.getState().tutorialStep
-    const target = TARGETS[step] ?? null
+    const { tutorialStep: step, progressKnown } = useGameStore.getState()
+    const target = progressKnown ? TARGETS[step] ?? null : null
     if (!target) {
       mesh.count = 0
       return
